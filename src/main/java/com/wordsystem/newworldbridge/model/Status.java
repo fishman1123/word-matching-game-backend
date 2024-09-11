@@ -1,4 +1,4 @@
-package com.wordsystem.newworldbridge.controller.model;
+package com.wordsystem.newworldbridge.model;
 
 public enum Status {
     JOIN,
