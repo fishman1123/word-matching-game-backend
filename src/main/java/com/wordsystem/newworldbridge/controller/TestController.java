@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("check/google")
+@RequestMapping("/check/google")
 public class TestController {
 
     @GetMapping
@@ -21,5 +21,14 @@ public class TestController {
         response.put("message", "working");
 
         return response; // This will be automatically converted to JSON
+    }
+    @GetMapping("hello")
+    public Map<String, String> showBeginningLog() {
+
+        // Create a JSON-like structure using a Map
+        Map<String, String> response = new HashMap<>();
+        response.put("message", "hello");
+
+        return response;
     }
 }
