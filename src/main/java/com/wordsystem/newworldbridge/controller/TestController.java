@@ -1,34 +1,28 @@
 package com.wordsystem.newworldbridge.controller;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.client.annotation.RegisteredOAuth2AuthorizedClient;
+import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/check/google")
 public class TestController {
 
-    @GetMapping
-    public Map<String, String> showWorkingLog() {
+    @GetMapping("/auth/user-info")
+    public Map<String, Object> user(
+            @AuthenticationPrincipal OAuth2User principal,
+            @RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient authorizedClient) {
 
-        // Create a JSON-like structure using a Map
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "working");
-
-        return response; // This will be automatically converted to JSON
-    }
-    @GetMapping("hello")
-    public Map<String, String> showBeginningLog() {
-
-        // Create a JSON-like structure using a Map
-        Map<String, String> response = new HashMap<>();
-        response.put("message", "hello");
-
-        return response;
+        Map<String, Object> attributes = new HashMap<>(principal.getAttributes());
+        attributes.put("accessToken", authorizedClient.getAccessToken().getTokenValue());
+        attributes.put("refreshToken", authorizedClient.getRefreshToken() != null
+                ? authorizedClient.getRefreshToken().getTokenValue()
+                : null);
+        return attributes;
     }
 }

@@ -10,9 +10,9 @@ public class DemoController {
     public String showGreeting() {
         return "Good to see you";
     }
-    @GetMapping("hello")
+    @GetMapping("/hello")
     public String showResult() {
-        return "Good to see you";
+        return "Good to see you from hello router";
     }
 
 }
