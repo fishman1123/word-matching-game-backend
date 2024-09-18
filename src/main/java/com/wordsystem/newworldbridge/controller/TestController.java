@@ -1,5 +1,6 @@
 package com.wordsystem.newworldbridge.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -163,5 +164,27 @@ public class TestController {
         Map<String, Object> response = new HashMap<>();
         response.put("accessToken", tokenResponse.getAccessToken().getTokenValue());
         return response;
+    }
+
+    @PostMapping("/auth/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request, Authentication authentication) {
+        if (authentication != null && authentication.isAuthenticated()) {
+            // Remove the authorized client from the authorized client service
+            String principalName = authentication.getName();
+            String registrationId = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+
+            authorizedClientService.removeAuthorizedClient(registrationId, principalName);
+
+            // Invalidate the session
+            request.getSession().invalidate();
+
+            // Clear the security context
+            SecurityContextHolder.clearContext();
+
+            // Add any additional logout handling if necessary
+            System.out.println("User logged out successfully.");
+        }
+
+        return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 }
