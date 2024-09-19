@@ -181,7 +181,7 @@ public class TestController {
             // Clear the security context
             SecurityContextHolder.clearContext();
 
-            // Add any additional logout handling if necessary
+            // 로그아웃 로그
             System.out.println("User logged out successfully.");
         }
 
