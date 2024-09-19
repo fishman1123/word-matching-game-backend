@@ -1,6 +1,9 @@
 package com.wordsystem.newworldbridge.controller;
 
+import com.wordsystem.newworldbridge.dto.Login;
+import com.wordsystem.newworldbridge.model.service.LoginService;
 import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -32,24 +35,52 @@ public class TestController {
     private final OAuth2AuthorizedClientManager authorizedClientManager;
     private final OAuth2AuthorizedClientService authorizedClientService;
 
+
     public TestController(OAuth2AuthorizedClientManager authorizedClientManager,
                           OAuth2AuthorizedClientService authorizedClientService) {
         this.authorizedClientManager = authorizedClientManager;
         this.authorizedClientService = authorizedClientService;
     }
+    @Autowired
+    private LoginService loginService;
 
     @GetMapping("/auth/user-info")
     public Map<String, Object> user(
             @AuthenticationPrincipal OAuth2User principal,
             @RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient authorizedClient) {
 
+        // Extract attributes from the OAuth2User
         Map<String, Object> attributes = new HashMap<>(principal.getAttributes());
+
+        // Extract access and refresh tokens
         attributes.put("accessToken", authorizedClient.getAccessToken().getTokenValue());
         attributes.put("refreshToken", authorizedClient.getRefreshToken() != null
                 ? authorizedClient.getRefreshToken().getTokenValue()
                 : null);
 
-        // Add System.out.println statements to check tokens and expiration
+        // Extract email and username from the principal's attributes
+        System.out.printf("user info: %s\n", attributes);
+        String email = (String) principal.getAttribute("email");
+        String username = (String) principal.getAttribute("name");
+
+        // Check if the user already exists in the database by email
+        Integer existingUserId = loginService.getIdByEmail(email);
+
+        if (existingUserId == null) {  // If no user is found, save the new user
+            // Create a new Login object and set its properties
+            Login login = new Login();
+            login.setSocialEmail(email);
+            login.setUsername(username);
+
+            // Save the user to the database using the LoginService
+            loginService.setUser(login);
+
+            System.out.println("New user saved to the database.");
+        } else {
+            System.out.println("User with email " + email + " already exists. No need to save.");
+        }
+
+        // Debug statements to check tokens and expiration
         System.out.println("Access Token: " + authorizedClient.getAccessToken().getTokenValue());
         System.out.println("Access Token Expires At: " + authorizedClient.getAccessToken().getExpiresAt());
 
@@ -62,6 +93,7 @@ public class TestController {
 
         return attributes;
     }
+
 
     @GetMapping("/auth/check-token")
     public ResponseEntity<Void> checkToken(Authentication authentication) {

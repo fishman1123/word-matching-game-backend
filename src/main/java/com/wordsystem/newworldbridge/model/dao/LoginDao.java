@@ -33,4 +33,7 @@ public interface LoginDao {
     // Delete ID (Same as deleteUser)
     @Delete("DELETE FROM login WHERE id = #{id}")
     void deleteId(int id);
+
+    @Select("SELECT id FROM login WHERE social_email = #{email}")
+    Integer getIdByEmail(String email);
 }

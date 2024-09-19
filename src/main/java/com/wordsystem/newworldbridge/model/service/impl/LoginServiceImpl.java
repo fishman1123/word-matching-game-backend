@@ -50,4 +50,9 @@ public class LoginServiceImpl implements LoginService {
     public void deleteId(int id) {
         loginDao.deleteId(id);
     }
+
+    @Override
+    public Integer getIdByEmail(String email) {
+        return loginDao.getIdByEmail(email);
+    }
 }

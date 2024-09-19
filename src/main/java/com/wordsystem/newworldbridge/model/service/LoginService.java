@@ -25,4 +25,6 @@ public interface LoginService {
 
     // Delete ID (Same as deleteUser)
     void deleteId(int id);
+
+    Integer getIdByEmail(String email);
 }
