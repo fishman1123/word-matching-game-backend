@@ -19,6 +19,7 @@ public class ChatController {
     @MessageMapping("/message")
     @SendTo("/chatroom/public")
     private Message recievePublicMessage(@Payload Message message) {
+
         return message;
     }
 

@@ -27,4 +27,6 @@ public interface LoginService {
     void deleteId(int id);
 
     Integer getIdByEmail(String email);
+
+    void updateUsernameByEmail(String email, String username);
 }

@@ -1,7 +1,9 @@
 package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.dto.Login;
+import com.wordsystem.newworldbridge.dto.UserInformation;
 import com.wordsystem.newworldbridge.model.service.LoginService;
+import com.wordsystem.newworldbridge.model.service.UserInformationService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -43,9 +45,11 @@ public class TestController {
     }
     @Autowired
     private LoginService loginService;
+    @Autowired
+    private UserInformationService userInformationService;
 
     @GetMapping("/auth/user-info")
-    public Map<String, Object> user(
+    public ResponseEntity<Map<String, Object>> user(
             @AuthenticationPrincipal OAuth2User principal,
             @RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient authorizedClient) {
 
@@ -63,36 +67,57 @@ public class TestController {
         String email = (String) principal.getAttribute("email");
         String username = (String) principal.getAttribute("name");
 
-        // Check if the user already exists in the database by email
+        // Check if the user already exists in the login table by email
         Integer existingUserId = loginService.getIdByEmail(email);
 
         if (existingUserId == null) {  // If no user is found, save the new user
             // Create a new Login object and set its properties
             Login login = new Login();
             login.setSocialEmail(email);
-            login.setUsername(username);
+            loginService.setUser(login);  // Save the user to the login table
 
-            // Save the user to the database using the LoginService
-            loginService.setUser(login);
+            // Get the newly created user's ID (assuming MyBatis returns it after insertion)
+            Integer newUserId = loginService.getIdByEmail(email);
 
-            System.out.println("New user saved to the database.");
+            // Create and save UserInformation for the new user
+            UserInformation userInfo = new UserInformation();
+            userInfo.setId(newUserId);  // Set the user's ID
+            userInfo.setUserWin(0);     // Initialize win, lose, room, and playing status
+            userInfo.setUserLose(0);
+            userInfo.setUserHasRoom(0);
+            userInfo.setIsUserPlaying(0);
+            userInformationService.setUserInformation(userInfo);  // Save user information to user_information table
+
+            System.out.println("New user and user information saved to the database.");
+
+            // Return a response indicating the user does not exist before
+            attributes.put("status", "noexist");
+            return ResponseEntity.ok(attributes);
         } else {
-            System.out.println("User with email " + email + " already exists. No need to save.");
+            System.out.println("User with email " + email + " already exists.");
+
+            // Check if the user information already exists in the user_information table
+            UserInformation existingUserInfo = userInformationService.getUserInformation(existingUserId);
+            if (existingUserInfo == null) {
+                // Create and save UserInformation if it doesn't exist
+                UserInformation userInfo = new UserInformation();
+                userInfo.setId(existingUserId);  // Set the user's ID
+                userInfo.setUserWin(0);          // Initialize win, lose, room, and playing status
+                userInfo.setUserLose(0);
+                userInfo.setUserHasRoom(0);
+                userInfo.setIsUserPlaying(0);
+                userInformationService.setUserInformation(userInfo);  // Save to user_information table
+
+                System.out.println("User information saved for existing user.");
+            }
+
+            // Return a response indicating the user already exists
+            attributes.put("status", "exist");
+            return ResponseEntity.ok(attributes);
         }
-
-        // Debug statements to check tokens and expiration
-        System.out.println("Access Token: " + authorizedClient.getAccessToken().getTokenValue());
-        System.out.println("Access Token Expires At: " + authorizedClient.getAccessToken().getExpiresAt());
-
-        if (authorizedClient.getRefreshToken() != null) {
-            System.out.println("Refresh Token: " + authorizedClient.getRefreshToken().getTokenValue());
-            System.out.println("Refresh Token Expires At: " + authorizedClient.getRefreshToken().getExpiresAt());
-        } else {
-            System.out.println("No Refresh Token available.");
-        }
-
-        return attributes;
     }
+
+
 
 
     @GetMapping("/auth/check-token")
@@ -132,6 +157,31 @@ public class TestController {
 
         System.out.println("Access token is valid.");
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/auth/set-nickname")
+    public ResponseEntity<String> setNickname(@RequestBody Map<String, String> requestBody,
+                                              @AuthenticationPrincipal OAuth2User principal) {
+        String nickname = requestBody.get("nickname");
+        System.out.printf(nickname);
+        if (nickname.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body("Nickname is required");
+        }
+
+        // Get the user's email from the authentication principal
+        String email = principal.getAttribute("email");
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("User email not found");
+        }
+
+        // Update the username in the database
+        try {
+            loginService.updateUsernameByEmail(email, nickname);
+            return ResponseEntity.ok("Nickname updated successfully");
+        } catch (Exception e) {
+            // Handle exceptions, e.g., user not found
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Failed to update nickname");
+        }
     }
 
     @PostMapping("/auth/refresh-token")

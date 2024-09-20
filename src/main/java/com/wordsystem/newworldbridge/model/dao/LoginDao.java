@@ -36,4 +36,7 @@ public interface LoginDao {
 
     @Select("SELECT id FROM login WHERE social_email = #{email}")
     Integer getIdByEmail(String email);
+
+    @Update("UPDATE login SET username = #{username} WHERE social_email = #{email}")
+    void updateUsernameByEmail(@Param("email") String email, @Param("username") String username);
 }

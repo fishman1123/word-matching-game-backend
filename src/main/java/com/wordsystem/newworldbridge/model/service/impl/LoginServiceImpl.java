@@ -55,4 +55,9 @@ public class LoginServiceImpl implements LoginService {
     public Integer getIdByEmail(String email) {
         return loginDao.getIdByEmail(email);
     }
+
+    @Override
+    public void updateUsernameByEmail(String email, String username) {
+        loginDao.updateUsernameByEmail(email, username);
+    }
 }
