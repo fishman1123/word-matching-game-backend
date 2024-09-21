@@ -6,6 +6,8 @@ import com.wordsystem.newworldbridge.model.service.RoomInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+
 @Service
 public class RoomInfoServiceImpl implements RoomInfoService {
 
@@ -14,6 +16,11 @@ public class RoomInfoServiceImpl implements RoomInfoService {
     @Autowired
     public RoomInfoServiceImpl(RoomInfoDao roomInfoDao) {
         this.roomInfoDao = roomInfoDao;
+    }
+
+    @Override
+    public void updateRoom(RoomInfo roomInfo) {
+        roomInfoDao.updateRoom(roomInfo);
     }
 
     @Override
@@ -29,6 +36,11 @@ public class RoomInfoServiceImpl implements RoomInfoService {
     @Override
     public RoomInfo getRoom(int id) {
         return roomInfoDao.getRoom(id);
+    }
+
+    @Override
+    public List<RoomInfo> getAllRooms() {
+        return roomInfoDao.getAllRooms();
     }
 
     @Override

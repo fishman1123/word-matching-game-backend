@@ -2,6 +2,8 @@ package com.wordsystem.newworldbridge.model.service;
 
 import com.wordsystem.newworldbridge.dto.RoomInfo;
 
+import java.util.List;
+
 public interface RoomInfoService {
 
     // 13. setRoom
@@ -12,6 +14,10 @@ public interface RoomInfoService {
 
     // 15. getRoom
     RoomInfo getRoom(int id);
+
+    void updateRoom(RoomInfo roomInfo);
+
+    List<RoomInfo> getAllRooms();
 
     // 16. setInGame
     void setInGame(int id, int inGameStatus);
