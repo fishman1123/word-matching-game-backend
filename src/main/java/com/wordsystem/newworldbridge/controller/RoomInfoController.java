@@ -2,7 +2,9 @@
 package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.dto.RoomInfo;
+import com.wordsystem.newworldbridge.dto.RoomStatusInfo;
 import com.wordsystem.newworldbridge.model.service.RoomInfoService;
+import com.wordsystem.newworldbridge.model.service.RoomStatusInfoService;
 import com.wordsystem.newworldbridge.model.service.UserInformationService;
 import lombok.Getter;
 import lombok.Setter;
@@ -22,6 +24,9 @@ public class RoomInfoController {
 
     @Autowired
     private UserInformationService userInformationService;
+
+    @Autowired
+    private RoomStatusInfoService roomStatusInfoService;
 
     @PostMapping("/room")
     @Transactional
@@ -54,6 +59,15 @@ public class RoomInfoController {
                 // Update user_information to indicate the user has a room
                 userInformationService.updateUserHasRoom(userId, 1);
 
+                // Create and save RoomStatusInfo for the new room
+                RoomStatusInfo roomStatusInfo = new RoomStatusInfo();
+                roomStatusInfo.setId(userId); // Set the user's ID
+                roomStatusInfo.setEnteredPlayerId(null); // Initial value is null
+                roomStatusInfo.setHostIsReady(0); // Initialize to 0
+                roomStatusInfo.setVisitorIsReady(0); // Initialize to 0
+
+                roomStatusInfoService.insertRoomStatusInfo(roomStatusInfo); // Save to room_status_info table
+
                 return ResponseEntity.ok("Room created successfully");
             }
         } catch (Exception e) {
@@ -71,7 +85,6 @@ public class RoomInfoController {
             return ResponseEntity.status(500).body(null);
         }
     }
-
 
     // DTO for receiving the request body
     @Setter
