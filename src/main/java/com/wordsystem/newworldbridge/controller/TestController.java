@@ -69,10 +69,10 @@ public class TestController {
 
         // Check if the user already exists in the login table by email
         Integer existingUserId = loginService.getIdByEmail(email);
+        Login login = new Login();
 
         if (existingUserId == null) {  // If no user is found, save the new user
             // Create a new Login object and set its properties
-            Login login = new Login();
             login.setSocialEmail(email);
             loginService.setUser(login);  // Save the user to the login table
 
@@ -90,9 +90,9 @@ public class TestController {
 
             System.out.println("New user and user information saved to the database.");
 
-            // Return a response indicating the user does not exist before
-            attributes.put("status", "noexist");
-            return ResponseEntity.ok(attributes);
+            System.out.println("this is attribute: " + attributes);
+
+//            return ResponseEntity.ok(attributes);
         } else {
             System.out.println("User with email " + email + " already exists.");
 
@@ -112,9 +112,23 @@ public class TestController {
             }
 
             // Return a response indicating the user already exists
-            attributes.put("status", "exist");
-            return ResponseEntity.ok(attributes);
+//            attributes.put("status", "exist");
+            System.out.println("this is attribute: " + attributes);
+//            return ResponseEntity.ok(attributes);
+
         }
+        if (login.getUsername() == null) {
+            attributes.put("status", "noexist");
+
+        } else {
+            attributes.put("status", "exist");
+        }
+        // Return a response indicating the user does not exist before
+        System.out.println("this is attribute: " + attributes);
+
+        return ResponseEntity.ok(attributes);
+
+
     }
 
 
