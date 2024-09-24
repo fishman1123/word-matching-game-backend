@@ -3,6 +3,10 @@ package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.dto.RoomInfo;
 import com.wordsystem.newworldbridge.dto.RoomStatusInfo;
+import com.wordsystem.newworldbridge.dto.UserInformation;
+import com.wordsystem.newworldbridge.model.Message;
+import com.wordsystem.newworldbridge.model.Status;
+import com.wordsystem.newworldbridge.model.service.LoginService;
 import com.wordsystem.newworldbridge.model.service.RoomInfoService;
 import com.wordsystem.newworldbridge.model.service.RoomStatusInfoService;
 import com.wordsystem.newworldbridge.model.service.UserInformationService;
@@ -13,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -31,10 +36,18 @@ public class RoomInfoController {
     @Autowired
     private RoomStatusInfoService roomStatusInfoService;
 
+    @Autowired
+    private SimpMessagingTemplate simpMessagingTemplate;
+
+    @Autowired
+    private LoginService loginService;
+
     @PostMapping("/room")
     @Transactional
     public ResponseEntity<Map<String, Object>> createOrUpdateRoom(@RequestBody RoomRequest roomRequest) {
         Map<String, Object> responseMap = new HashMap<>();
+
+
         try {
             int userId = roomRequest.getUserId();
             double latitude = roomRequest.getLatitude();
@@ -134,23 +147,62 @@ public class RoomInfoController {
             @RequestBody Map<String, Integer> requestBody) {
         try {
             Integer userId = requestBody.get("userId");
+
+            // Fetch room status info for the host
             RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(hostId);
             if (roomStatusInfo == null) {
                 return ResponseEntity.status(404).body("Room not found");
             }
+
+            // Check if the user is the host
             if (roomStatusInfo.getId().equals(userId)) {
-                roomStatusInfo.setHostIsReady(1);
-            } else if (roomStatusInfo.getEnteredPlayerId() != null && roomStatusInfo.getEnteredPlayerId().equals(userId)) {
-                roomStatusInfo.setVisitorIsReady(1);
-            } else {
+                // Toggle host readiness
+                roomStatusInfo.setHostIsReady(roomStatusInfo.getHostIsReady() == 1 ? 0 : 1);
+            }
+            // Check if the user is the visitor
+            else if (roomStatusInfo.getEnteredPlayerId() != null && roomStatusInfo.getEnteredPlayerId().equals(userId)) {
+                // Toggle visitor readiness
+                roomStatusInfo.setVisitorIsReady(roomStatusInfo.getVisitorIsReady() == 1 ? 0 : 1);
+            }
+            else {
                 return ResponseEntity.status(400).body("User not part of this room");
             }
+
+            // Update the room status in the database
             roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
+
+            // If both host and visitor are ready, set the room as in-game
+            if (roomStatusInfo.getHostIsReady() == 1 && roomStatusInfo.getVisitorIsReady() == 1) {
+                roomInfoService.setInGame(hostId, 1);  // Use hostId or another room identifier
+
+                UserInformation hostUser = userInformationService.getUserInformation(roomStatusInfo.getId());
+                UserInformation visitorUser = userInformationService.getUserInformation(roomStatusInfo.getEnteredPlayerId());
+                System.out.println("host user data" + hostUser.getId());
+                Message readyMessage = new Message();
+                readyMessage.setMessage("true");
+                readyMessage.setStatus(Status.valueOf("READY"));
+
+
+                String hostName = loginService.getUserNameById(hostId);
+                String username = loginService.getUserNameById(userId);
+                System.out.println(hostName);
+                System.out.println(username);
+
+
+
+//                simpMessagingTemplate.convertAndSendToUser(hostName, "/ready/" + hostId + "/private", readyMessage);
+//                simpMessagingTemplate.convertAndSendToUser(username, "/ready/" + hostId + "/private", readyMessage);
+            } else {
+                roomInfoService.setInGame(hostId, 0);  // Use hostId or another room identifier
+
+            }
+
             return ResponseEntity.ok("Ready status updated successfully");
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Error updating ready status: " + e.getMessage());
         }
     }
+
 
     @GetMapping("/room/{roomId}/verify-location")
     public ResponseEntity<Map<String, Object>> verifyRoomLocation(

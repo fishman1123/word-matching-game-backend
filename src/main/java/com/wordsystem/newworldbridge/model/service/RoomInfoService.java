@@ -19,6 +19,7 @@ public interface RoomInfoService {
 
     List<RoomInfo> getAllRooms();
 
+
     // 16. setInGame
     void setInGame(int id, int inGameStatus);
 }

@@ -1,6 +1,7 @@
 package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.model.Message;
+import com.wordsystem.newworldbridge.model.Status;
 import com.wordsystem.newworldbridge.model.service.RoomStatusInfoService;
 import com.wordsystem.newworldbridge.model.service.UserInformationService;
 import com.wordsystem.newworldbridge.dto.RoomStatusInfo;
@@ -10,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
@@ -27,9 +29,15 @@ public class ChatController {
 
     @MessageMapping("/room/{roomId}/message")
     public void receiveRoomMessage(@DestinationVariable String roomId, @Payload Message message) {
-        if ("LEAVE".equals(message.getStatus())) {
+
+        System.out.println("this is the status" + message.getStatus());
+        System.out.println("this is the message" + message.getMessage());
+//        if (message.getMessage().equals("오")) {
+//            message.setMessage("오혜령?");
+//        }
+        if (message.getStatus() == Status.LEAVE) {
             handleUserLeave(roomId, message.getSenderName(), message.getUserId());
-        } else if ("JOIN".equals(message.getStatus())) {
+        } else if (message.getStatus() == Status.JOIN) {
             handleUserJoin(message.getUserId());
         }
         simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
@@ -37,7 +45,14 @@ public class ChatController {
 
     @MessageMapping("/private-message")
     public void receivePrivateMessage(@Payload Message message) {
+        System.out.println("this is the message" + message.getMessage());
         simpMessagingTemplate.convertAndSendToUser(message.getReceiverName(), "/private", message);
+    }
+
+    @MessageMapping("/message")
+    @SendTo("/chatroom/public")
+    private Message recievePublicMessage(@Payload Message message) {
+        return message;
     }
 
     private void handleUserJoin(Integer userId) {

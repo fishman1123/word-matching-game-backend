@@ -38,6 +38,7 @@ public class RoomInfoServiceImpl implements RoomInfoService {
         return roomInfoDao.getRoom(id);
     }
 
+
     @Override
     public List<RoomInfo> getAllRooms() {
         return roomInfoDao.getAllRooms();

@@ -30,5 +30,7 @@ public interface LoginService {
 
     String getUserNameByEmail(String email);
 
+    String getUserNameById(int id);
+
     void updateUsernameByEmail(String email, String username);
 }

@@ -13,6 +13,7 @@ public class Message {
     private String senderName;
     private Integer userId;
     private String receiverName;
+//    private String isReady;
     private String message;
     private String date;
     private Status status;

@@ -3,7 +3,6 @@ package com.wordsystem.newworldbridge.model.service.impl;
 import com.wordsystem.newworldbridge.dto.Login;
 import com.wordsystem.newworldbridge.model.dao.LoginDao;
 import com.wordsystem.newworldbridge.model.service.LoginService;
-import org.apache.ibatis.annotations.Select;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -59,6 +58,9 @@ public class LoginServiceImpl implements LoginService {
 
     @Override
     public String getUserNameByEmail(String email){ return loginDao.getUserNameByEmail(email);}
+
+    @Override
+    public String getUserNameById(int id){ return loginDao.getUserNameById(id);}
 
 
 
