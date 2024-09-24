@@ -28,5 +28,7 @@ public interface LoginService {
 
     Integer getIdByEmail(String email);
 
+    String getUserNameByEmail(String email);
+
     void updateUsernameByEmail(String email, String username);
 }

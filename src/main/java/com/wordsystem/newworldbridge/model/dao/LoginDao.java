@@ -26,6 +26,9 @@ public interface LoginDao {
     @Select("SELECT id FROM login WHERE username = #{username}")
     int getId(String username);
 
+    @Select("SELECT username FROM login WHERE social_email = #{email}")
+    String getUserNameByEmail(String email);
+
     // Update ID (Not common but included per request)
     @Update("UPDATE login SET id = #{newId} WHERE id = #{id}")
     void updateId(@Param("id") int id, @Param("newId") int newId);

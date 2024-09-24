@@ -117,7 +117,11 @@ public class TestController {
 //            return ResponseEntity.ok(attributes);
 
         }
-        if (login.getUsername() == null) {
+
+        String targetName = loginService.getUserNameByEmail(email);
+        System.out.println("this is the usename i have: " + targetName);
+
+        if (targetName == null) {
             attributes.put("status", "noexist");
 
         } else {
