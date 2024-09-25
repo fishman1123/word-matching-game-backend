@@ -1,5 +1,6 @@
 package com.wordsystem.newworldbridge.controller;
 
+import com.wordsystem.newworldbridge.config.UserSessionRegistry;
 import com.wordsystem.newworldbridge.model.Message;
 import com.wordsystem.newworldbridge.model.Status;
 import com.wordsystem.newworldbridge.model.service.RoomStatusInfoService;
@@ -15,6 +16,8 @@ import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.util.Collection;
+
 @Controller
 public class ChatController {
 
@@ -27,6 +30,9 @@ public class ChatController {
     @Autowired
     private UserInformationService userInformationService; // Use UserInformationService
 
+    @Autowired
+    private UserSessionRegistry userSessionRegistry;
+
     @MessageMapping("/room/{roomId}/message")
     public void receiveRoomMessage(@DestinationVariable String roomId, @Payload Message message) {
 
@@ -36,7 +42,7 @@ public class ChatController {
 //            message.setMessage("오혜령?");
 //        }
         if (message.getStatus() == Status.LEAVE) {
-            handleUserLeave(roomId, message.getSenderName(), message.getUserId());
+            handleUserLeave(roomId, message.getUserId());
         } else if (message.getStatus() == Status.JOIN) {
             handleUserJoin(message.getUserId());
         }
@@ -49,10 +55,38 @@ public class ChatController {
         simpMessagingTemplate.convertAndSendToUser(message.getReceiverName(), "/private", message);
     }
 
+//    @MessageMapping("/message")
+//    @SendTo("/chatroom/public")
+//    private Message recievePublicMessage(@Payload Message message) {
+//        return message;
+//    }
+
     @MessageMapping("/message")
     @SendTo("/chatroom/public")
-    private Message recievePublicMessage(@Payload Message message) {
+    public Message receivePublicMessage(@Payload Message message) {
+        if (message.getStatus() == Status.LEAVE) {
+            handleUserLeave(message.getSenderName(), message.getUserId());
+
+            // Broadcast updated user list
+            broadcastUserList();
+        } else if (message.getStatus() == Status.JOIN) {
+            handleUserJoin(message.getUserId());
+
+            // Broadcast updated user list
+            broadcastUserList();
+        }
         return message;
+    }
+
+
+    private void broadcastUserList() {
+        Collection<String> usernames = userSessionRegistry.getAllUsernames();
+
+        Message userListMessage = new Message();
+        userListMessage.setStatus(Status.USER_LIST);
+        userListMessage.setUserList(usernames);
+
+        simpMessagingTemplate.convertAndSend("/chatroom/public", userListMessage);
     }
 
     private void handleUserJoin(Integer userId) {
@@ -70,29 +104,15 @@ public class ChatController {
         }
     }
 
-    private void handleUserLeave(String roomId, String username, Integer userId) {
+    private void handleUserLeave(String username, Integer userId) {
         try {
             // Update is_user_playing to 0
             userInformationService.updateUserIsPlaying(userId, 0);
-            System.out.println("User " + username + " has left the room. Updating isUserPlaying to 0.");
+            System.out.println("User " + username + " has left. Updating isUserPlaying to 0.");
 
-            int hostId = Integer.parseInt(roomId);
-            RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(hostId);
+            // Remove user from session registry
+            userSessionRegistry.removeUserByUsername(username);
 
-            if (roomStatusInfo != null) {
-                // Check if the user is the visitor
-                if (roomStatusInfo.getEnteredPlayerId() != null && roomStatusInfo.getEnteredPlayerId().equals(userId)) {
-                    roomStatusInfo.setEnteredPlayerId(null);
-                    roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
-                    System.out.println("Resetting enteredPlayerId for roomId: " + roomId);
-                } else if (roomStatusInfo.getId().equals(userId)) {
-                    // If the host leaves
-                    System.out.println("Host " + username + " has left the room.");
-                    // Optionally handle room cleanup
-                }
-            } else {
-                System.out.println("Room status info not found for roomId: " + roomId);
-            }
         } catch (Exception e) {
             System.out.println("Error handling user leave: " + e.getMessage());
         }
