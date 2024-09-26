@@ -2,8 +2,14 @@ package com.wordsystem.newworldbridge.config;
 
 import com.wordsystem.newworldbridge.config.RoomSessionRegistry;
 import com.wordsystem.newworldbridge.config.UserSessionRegistry;
+import com.wordsystem.newworldbridge.dto.RoomInfo;
+import com.wordsystem.newworldbridge.dto.RoomStatusInfo;
 import com.wordsystem.newworldbridge.model.Message;
 import com.wordsystem.newworldbridge.model.Status;
+import com.wordsystem.newworldbridge.model.service.LoginService;
+import com.wordsystem.newworldbridge.model.service.RoomInfoService;
+import com.wordsystem.newworldbridge.model.service.RoomStatusInfoService;
+import com.wordsystem.newworldbridge.model.service.UserInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationListener;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -24,6 +30,18 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
     @Autowired
     private RoomSessionRegistry roomSessionRegistry;
 
+    @Autowired
+    private UserInformationService userInformationService;
+
+    @Autowired
+    private RoomInfoService roomInfoService;
+
+    @Autowired
+    private RoomStatusInfoService roomStatusInfoService;
+
+    @Autowired
+    private LoginService loginService; // Use LoginService to get userId
+
     @Override
     public void onApplicationEvent(SessionDisconnectEvent event) {
         handleSessionDisconnected(event);
@@ -39,9 +57,19 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
             // Remove user from registries
             userSessionRegistry.removeUser(sessionId);
 
-            // If the user was in a private room, remove from room registry and broadcast update
+            // Fetch userId using LoginService
+            Integer userId = loginService.getId(username);
+            if (userId == null) {
+                System.err.println("User ID not found for username: " + username);
+                return;
+            }
+
             if (roomId != null) {
+                // If the user was in a private room, remove from room registry and broadcast update
                 roomSessionRegistry.removeUserFromRoom(roomId, username);
+
+                // Handle database updates based on user role
+                handleUserDisconnection(username, userId, roomId);
 
                 // Send LEAVE message to the private room
                 Message leaveMessage = new Message();
@@ -65,6 +93,54 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
 
             // Broadcast updated user list to the public chatroom
             broadcastUserList();
+        }
+    }
+
+    private void handleUserDisconnection(String username, Integer userId, String roomId) {
+        try {
+            int roomIdInt = Integer.parseInt(roomId);
+
+            // Fetch room info and status info
+            RoomInfo roomInfo = roomInfoService.getRoom(roomIdInt);
+            RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(roomIdInt);
+
+            if (roomInfo == null || roomStatusInfo == null) {
+                // Room does not exist, handle error if necessary
+                System.err.println("Room not found for ID: " + roomIdInt);
+                return;
+            }
+
+            if (roomInfo.getId() == userId) {
+                // User is the host
+                // Delete room info and status info
+                roomInfoService.deleteRoom(roomIdInt);
+                roomStatusInfoService.deleteRoomStatusInfoById(roomIdInt);
+
+                // Update user information
+                userInformationService.updateUserHasRoom(userId, 0);
+                userInformationService.updateUserIsPlaying(userId, 0);
+
+                System.out.println("Host " + username + " disconnected. Room " + roomIdInt + " deleted.");
+            } else if (roomStatusInfo.getEnteredPlayerId() != null && roomStatusInfo.getEnteredPlayerId().equals(userId)) {
+                // User is the visitor
+                // Reset room status fields
+                roomInfoService.setInGame(roomIdInt, 0);
+
+                roomStatusInfo.setVisitorIsReady(0);
+                roomStatusInfo.setEnteredPlayerId(null);
+                roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
+
+                // Update user information
+                userInformationService.updateUserIsPlaying(userId, 0);
+
+                System.out.println("Visitor " + username + " disconnected from room " + roomIdInt);
+            } else {
+                // User is not part of the room
+                System.err.println("User " + username + " is not part of room " + roomIdInt);
+            }
+        } catch (Exception e) {
+            // Log error
+            System.err.println("Error handling user disconnection: " + e.getMessage());
         }
     }
 
