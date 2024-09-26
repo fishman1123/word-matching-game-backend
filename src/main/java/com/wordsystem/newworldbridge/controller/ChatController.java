@@ -1,18 +1,15 @@
 package com.wordsystem.newworldbridge.controller;
 
+import com.wordsystem.newworldbridge.config.RoomSessionRegistry;
 import com.wordsystem.newworldbridge.config.UserSessionRegistry;
+import com.wordsystem.newworldbridge.dto.UserInformation;
 import com.wordsystem.newworldbridge.model.Message;
 import com.wordsystem.newworldbridge.model.Status;
-import com.wordsystem.newworldbridge.model.service.RoomStatusInfoService;
 import com.wordsystem.newworldbridge.model.service.UserInformationService;
-import com.wordsystem.newworldbridge.dto.RoomStatusInfo;
-import com.wordsystem.newworldbridge.dto.UserInformation;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
-import org.springframework.messaging.handler.annotation.SendTo;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
@@ -25,59 +22,43 @@ public class ChatController {
     private SimpMessagingTemplate simpMessagingTemplate;
 
     @Autowired
-    private RoomStatusInfoService roomStatusInfoService;
-
-    @Autowired
-    private UserInformationService userInformationService; // Use UserInformationService
+    private UserInformationService userInformationService;
 
     @Autowired
     private UserSessionRegistry userSessionRegistry;
 
+    @Autowired
+    private RoomSessionRegistry roomSessionRegistry;
+
     @MessageMapping("/room/{roomId}/message")
     public void receiveRoomMessage(@DestinationVariable String roomId, @Payload Message message) {
 
-        System.out.println("this is the status" + message.getStatus());
-        System.out.println("this is the message" + message.getMessage());
-//        if (message.getMessage().equals("오")) {
-//            message.setMessage("오혜령?");
-//        }
-        if (message.getStatus() == Status.LEAVE) {
-            handleUserLeave(roomId, message.getUserId());
-        } else if (message.getStatus() == Status.JOIN) {
-            handleUserJoin(message.getUserId());
+        System.out.println("Status: " + message.getStatus());
+        System.out.println("Message: " + message.getMessage());
+
+        if (message.getStatus() == Status.JOIN) {
+            handleRoomUserJoin(roomId, message.getSenderName(), message.getUserId());
+        } else if (message.getStatus() == Status.LEAVE) {
+            handleRoomUserLeave(roomId, message.getSenderName(), message.getUserId());
         }
+
+        // Broadcast the message to the room
         simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
     }
 
-    @MessageMapping("/private-message")
-    public void receivePrivateMessage(@Payload Message message) {
-        System.out.println("this is the message" + message.getMessage());
-        simpMessagingTemplate.convertAndSendToUser(message.getReceiverName(), "/private", message);
-    }
-
-//    @MessageMapping("/message")
-//    @SendTo("/chatroom/public")
-//    private Message recievePublicMessage(@Payload Message message) {
-//        return message;
-//    }
-
     @MessageMapping("/message")
-    @SendTo("/chatroom/public")
-    public Message receivePublicMessage(@Payload Message message) {
-        if (message.getStatus() == Status.LEAVE) {
-            handleUserLeave(message.getSenderName(), message.getUserId());
-
-            // Broadcast updated user list
-            broadcastUserList();
-        } else if (message.getStatus() == Status.JOIN) {
+    public void receivePublicMessage(@Payload Message message) {
+        if (message.getStatus() == Status.JOIN) {
             handleUserJoin(message.getUserId());
-
-            // Broadcast updated user list
+            broadcastUserList();
+        } else if (message.getStatus() == Status.LEAVE) {
+            handleUserLeave(message.getSenderName(), message.getUserId());
             broadcastUserList();
         }
-        return message;
-    }
 
+        // Broadcast the message to the public chatroom
+        simpMessagingTemplate.convertAndSend("/chatroom/public", message);
+    }
 
     private void broadcastUserList() {
         Collection<String> usernames = userSessionRegistry.getAllUsernames();
@@ -116,5 +97,43 @@ public class ChatController {
         } catch (Exception e) {
             System.out.println("Error handling user leave: " + e.getMessage());
         }
+    }
+
+    private void handleRoomUserJoin(String roomId, String username, Integer userId) {
+        try {
+            // Add user to the room's session registry
+            roomSessionRegistry.addUserToRoom(roomId, username);
+
+            // Broadcast updated user list to the room
+            broadcastRoomUserList(roomId);
+
+            System.out.println("User " + username + " joined room " + roomId);
+        } catch (Exception e) {
+            System.out.println("Error handling room user join: " + e.getMessage());
+        }
+    }
+
+    private void handleRoomUserLeave(String roomId, String username, Integer userId) {
+        try {
+            // Remove user from the room's session registry
+            roomSessionRegistry.removeUserFromRoom(roomId, username);
+
+            // Broadcast updated user list to the room
+            broadcastRoomUserList(roomId);
+
+            System.out.println("User " + username + " left room " + roomId);
+        } catch (Exception e) {
+            System.out.println("Error handling room user leave: " + e.getMessage());
+        }
+    }
+
+    private void broadcastRoomUserList(String roomId) {
+        Collection<String> roomUsernames = roomSessionRegistry.getUsersInRoom(roomId);
+
+        Message userListMessage = new Message();
+        userListMessage.setStatus(Status.USER_LIST);
+        userListMessage.setUserList(roomUsernames);
+
+        simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", userListMessage);
     }
 }
