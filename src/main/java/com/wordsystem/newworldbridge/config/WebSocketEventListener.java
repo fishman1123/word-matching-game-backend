@@ -44,6 +44,7 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
 
     @Override
     public void onApplicationEvent(SessionDisconnectEvent event) {
+        System.out.println(event);
         handleSessionDisconnected(event);
     }
 
@@ -142,6 +143,7 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
 
                 System.out.println("Visitor " + username + " disconnected from room " + roomIdInt);
             } else {
+
                 // User is not part of the room
                 System.err.println("User " + username + " is not part of room " + roomIdInt);
             }

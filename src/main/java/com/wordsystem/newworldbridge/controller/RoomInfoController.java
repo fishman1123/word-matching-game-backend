@@ -142,6 +142,8 @@ public class RoomInfoController {
             if (enteredPlayerId == roomId || enteredPlayerId == 0) {
                 // Do not set enteredPlayerId for host or if enteredPlayerId is 0
                 roomStatusInfo.setEnteredPlayerId(null);
+                roomStatusInfo.setVisitorIsReady(0);
+
                 System.out.println("Host is joining or enteredPlayerId is 0. Setting enteredPlayerId to null.");
             } else {
                 // Set enteredPlayerId for regular users
