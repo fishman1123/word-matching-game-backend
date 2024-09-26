@@ -130,8 +130,6 @@ public class RoomInfoController {
         System.out.println("Updating enteredPlayerId for roomId: " + roomId + ", enteredPlayerId: " + enteredPlayerId);
 
         try {
-            System.out.println("Updating enteredPlayerId for roomId: " + roomId + ", enteredPlayerId: " + enteredPlayerId);
-
             // Fetch RoomStatusInfo using roomId
             RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(roomId);
             if (roomStatusInfo == null) {
@@ -140,9 +138,18 @@ public class RoomInfoController {
             }
             System.out.println("Before update, RoomStatusInfo: " + roomStatusInfo);
 
-            roomStatusInfo.setEnteredPlayerId(enteredPlayerId == 0 ? null : enteredPlayerId);
-            roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
+            // Check if the joining user is the host
+            if (enteredPlayerId == roomId || enteredPlayerId == 0) {
+                // Do not set enteredPlayerId for host or if enteredPlayerId is 0
+                roomStatusInfo.setEnteredPlayerId(null);
+                System.out.println("Host is joining or enteredPlayerId is 0. Setting enteredPlayerId to null.");
+            } else {
+                // Set enteredPlayerId for regular users
+                roomStatusInfo.setEnteredPlayerId(enteredPlayerId);
+                System.out.println("Setting enteredPlayerId to: " + enteredPlayerId);
+            }
 
+            roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
             System.out.println("After update, RoomStatusInfo: " + roomStatusInfo);
 
             return ResponseEntity.ok("Entered player ID updated successfully");
@@ -151,6 +158,7 @@ public class RoomInfoController {
             return ResponseEntity.status(500).body("Error updating room status: " + e.getMessage());
         }
     }
+
 
     // RoomInfoController.java
 
