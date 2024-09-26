@@ -1,3 +1,4 @@
+// CustomChannelInterceptor.java
 package com.wordsystem.newworldbridge.config;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,10 +21,17 @@ public class CustomChannelInterceptor implements ChannelInterceptor {
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String username = accessor.getFirstNativeHeader("username");
             String sessionId = accessor.getSessionId();
-            String roomId = accessor.getFirstNativeHeader("roomId"); // Get roomId from headers
+            String roomId = accessor.getFirstNativeHeader("roomId");
+
+            System.out.println("CustomChannelInterceptor - CONNECT command received");
+            System.out.println("Username: " + username);
+            System.out.println("Session ID: " + sessionId);
+            System.out.println("Room ID: " + roomId);
 
             if (username != null && sessionId != null) {
                 userSessionRegistry.addUser(sessionId, username, roomId);
+            } else {
+                System.err.println("Username or Session ID is null");
             }
         }
 

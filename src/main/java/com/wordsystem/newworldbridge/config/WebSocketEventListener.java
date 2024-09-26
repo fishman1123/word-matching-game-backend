@@ -50,8 +50,11 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
     private void handleSessionDisconnected(SessionDisconnectEvent event) {
         String sessionId = event.getSessionId();
 
+
+
         String username = userSessionRegistry.getUsername(sessionId);
         String roomId = userSessionRegistry.getUserRoom(sessionId);
+        System.out.println("super username: " + username);
 
         if (username != null) {
             // Remove user from registries
@@ -59,6 +62,8 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
 
             // Fetch userId using LoginService
             Integer userId = loginService.getId(username);
+
+            System.out.println(userId);
             if (userId == null) {
                 System.err.println("User ID not found for username: " + username);
                 return;
@@ -99,8 +104,10 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
     private void handleUserDisconnection(String username, Integer userId, String roomId) {
         try {
             int roomIdInt = Integer.parseInt(roomId);
+            System.out.println(roomIdInt);
 
             // Fetch room info and status info
+
             RoomInfo roomInfo = roomInfoService.getRoom(roomIdInt);
             RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(roomIdInt);
 

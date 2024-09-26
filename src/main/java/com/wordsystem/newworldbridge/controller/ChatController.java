@@ -14,6 +14,8 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 @Controller
 public class ChatController {
@@ -63,9 +65,12 @@ public class ChatController {
     private void broadcastUserList() {
         Collection<String> usernames = userSessionRegistry.getAllUsernames();
 
+        // Use a Set to ensure uniqueness
+        Set<String> uniqueUsernames = new HashSet<>(usernames);
+
         Message userListMessage = new Message();
         userListMessage.setStatus(Status.USER_LIST);
-        userListMessage.setUserList(usernames);
+        userListMessage.setUserList(uniqueUsernames);
 
         simpMessagingTemplate.convertAndSend("/chatroom/public", userListMessage);
     }

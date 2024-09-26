@@ -123,32 +123,63 @@ public class RoomInfoController {
 
 
 
-    @GetMapping("/room/{hostId}/enter")
+    @GetMapping("/room/{roomId}/enter")
     public ResponseEntity<String> updateEnteredPlayerId(
-            @PathVariable int hostId,
+            @PathVariable int roomId,
             @RequestParam("enteredPlayerId") int enteredPlayerId) {
+        System.out.println("Updating enteredPlayerId for roomId: " + roomId + ", enteredPlayerId: " + enteredPlayerId);
+
         try {
-            RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(hostId);
+            System.out.println("Updating enteredPlayerId for roomId: " + roomId + ", enteredPlayerId: " + enteredPlayerId);
+
+            // Fetch RoomStatusInfo using roomId
+            RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(roomId);
             if (roomStatusInfo == null) {
+                System.err.println("RoomStatusInfo not found for roomId: " + roomId);
                 return ResponseEntity.status(404).body("Room not found");
             }
+            System.out.println("Before update, RoomStatusInfo: " + roomStatusInfo);
+
             roomStatusInfo.setEnteredPlayerId(enteredPlayerId == 0 ? null : enteredPlayerId);
             roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
+
+            System.out.println("After update, RoomStatusInfo: " + roomStatusInfo);
+
             return ResponseEntity.ok("Entered player ID updated successfully");
         } catch (Exception e) {
+            System.err.println("Error updating room status: " + e.getMessage());
             return ResponseEntity.status(500).body("Error updating room status: " + e.getMessage());
         }
     }
 
+    // RoomInfoController.java
+
     @PutMapping("/room/{hostId}/ready")
     public ResponseEntity<String> updateReadyStatus(
             @PathVariable int hostId,
-            @RequestBody Map<String, Integer> requestBody) {
+            @RequestBody Map<String, Object> requestBody) {
+
         try {
-            Integer userId = requestBody.get("userId");
+            Object userIdObj = requestBody.get("userId");
+            Integer userId = null;
+            System.out.println("Received userId: " + userIdObj);
+
+            if (userIdObj instanceof Integer) {
+                userId = (Integer) userIdObj;
+            } else if (userIdObj instanceof Number) {
+                userId = ((Number) userIdObj).intValue();
+            } else if (userIdObj instanceof String) {
+                userId = Integer.parseInt((String) userIdObj);
+            } else {
+                System.err.println("Invalid userId type: " + userIdObj);
+                return ResponseEntity.status(400).body("Invalid userId");
+            }
+            Boolean forceReadyStatus = (Boolean) requestBody.get("forceReadyStatus"); // Optional parameter
+
             System.out.println("Received request to update ready status:");
             System.out.println("Host ID: " + hostId);
             System.out.println("User ID: " + userId);
+            System.out.println("Force Ready Status: " + forceReadyStatus);
 
             // Fetch room status info for the host
             RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(hostId);
@@ -161,17 +192,26 @@ public class RoomInfoController {
 
             // Check if the user is the host
             if (roomStatusInfo.getId().equals(userId)) {
-                // Toggle host readiness
-                roomStatusInfo.setHostIsReady(roomStatusInfo.getHostIsReady() == 1 ? 0 : 1);
+                if (forceReadyStatus != null) {
+                    // Set host readiness to the forced value
+                    roomStatusInfo.setHostIsReady(forceReadyStatus ? 1 : 0);
+                } else {
+                    // Toggle host readiness
+                    roomStatusInfo.setHostIsReady(roomStatusInfo.getHostIsReady() == 1 ? 0 : 1);
+                }
                 System.out.println("Updated Host Is Ready to: " + roomStatusInfo.getHostIsReady());
             }
             // Check if the user is the visitor
             else if (roomStatusInfo.getEnteredPlayerId() != null && roomStatusInfo.getEnteredPlayerId().equals(userId)) {
-                // Toggle visitor readiness
-                roomStatusInfo.setVisitorIsReady(roomStatusInfo.getVisitorIsReady() == 1 ? 0 : 1);
+                if (forceReadyStatus != null) {
+                    // Set visitor readiness to the forced value
+                    roomStatusInfo.setVisitorIsReady(forceReadyStatus ? 1 : 0);
+                } else {
+                    // Toggle visitor readiness
+                    roomStatusInfo.setVisitorIsReady(roomStatusInfo.getVisitorIsReady() == 1 ? 0 : 1);
+                }
                 System.out.println("Updated Visitor Is Ready to: " + roomStatusInfo.getVisitorIsReady());
-            }
-            else {
+            } else {
                 System.out.println("User ID " + userId + " is not part of the room.");
                 return ResponseEntity.status(400).body("User not part of this room");
             }
@@ -180,14 +220,28 @@ public class RoomInfoController {
             roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
             System.out.println("Updated Room Status Info: " + roomStatusInfo);
 
-            // If both host and visitor are ready, set the room as in-game
+            // Create a message object
+            Message statusMessage = new Message();
+            statusMessage.setMessage("Ready status updated");
+            statusMessage.setUserId(userId); // Include the userId
+
+            // If both host and visitor are ready, set the room as in-game and send READY message
             if (roomStatusInfo.getHostIsReady() == 1 && roomStatusInfo.getVisitorIsReady() == 1) {
-                roomInfoService.setInGame(hostId, 1);  // Use hostId or another room identifier
+                roomInfoService.setInGame(hostId, 1);  // Use hostId as room identifier
                 System.out.println("Both users are ready. Room " + hostId + " set to in-game.");
-                // Optionally send a READY message via WebSocket
+
+                // Send READY message via WebSocket
+                statusMessage.setStatus(Status.READY);
+
+                simpMessagingTemplate.convertAndSend("/room/" + hostId + "/public", statusMessage);
             } else {
-                roomInfoService.setInGame(hostId, 0);  // Use hostId or another room identifier
+                roomInfoService.setInGame(hostId, 0);  // Use hostId as room identifier
                 System.out.println("Room " + hostId + " is not in-game.");
+
+                // Send NOT_READY message via WebSocket
+                statusMessage.setStatus(Status.NOT_READY);
+
+                simpMessagingTemplate.convertAndSend("/room/" + hostId + "/public", statusMessage);
             }
 
             return ResponseEntity.ok("Ready status updated successfully");
@@ -196,6 +250,9 @@ public class RoomInfoController {
             return ResponseEntity.status(500).body("Error updating ready status: " + e.getMessage());
         }
     }
+
+
+
 
 
     @GetMapping("/room/{roomId}/verify-location")

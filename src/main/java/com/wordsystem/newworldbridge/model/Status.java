@@ -5,8 +5,9 @@ public enum Status {
     MESSAGE,
     LEAVE,
     READY,
+    NOT_READY, // Add this
     USER_LIST,
-
 }
+
 
 
