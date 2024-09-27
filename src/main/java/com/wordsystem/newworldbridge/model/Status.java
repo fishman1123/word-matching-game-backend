@@ -7,6 +7,8 @@ public enum Status {
     READY,
     NOT_READY, // Add this
     USER_LIST,
+    GAME_IS_ON,
+
 }
 
 
