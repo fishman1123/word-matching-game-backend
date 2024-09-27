@@ -147,7 +147,7 @@ public class RoomInfoController {
                 System.out.println("Host is joining or enteredPlayerId is 0. Setting enteredPlayerId to null.");
             } else {
                 // Set enteredPlayerId for regular users
-                roomStatusInfo.setEnteredPlayerId(enteredPlayerId);
+//                roomStatusInfo.setEnteredPlayerId(enteredPlayerId);
                 System.out.println("Setting enteredPlayerId to: " + enteredPlayerId);
             }
 
@@ -247,6 +247,10 @@ public class RoomInfoController {
             } else {
                 roomInfoService.setInGame(hostId, 0);  // Use hostId as room identifier
                 System.out.println("Room " + hostId + " is not in-game.");
+//                roomStatusInfo.setEnteredPlayerId(null);
+//                roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
+
+
 
                 // Send NOT_READY message via WebSocket
                 statusMessage.setStatus(Status.NOT_READY);

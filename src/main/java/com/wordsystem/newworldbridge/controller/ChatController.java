@@ -2,9 +2,11 @@ package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.config.RoomSessionRegistry;
 import com.wordsystem.newworldbridge.config.UserSessionRegistry;
+import com.wordsystem.newworldbridge.dto.RoomStatusInfo;
 import com.wordsystem.newworldbridge.dto.UserInformation;
 import com.wordsystem.newworldbridge.model.Message;
 import com.wordsystem.newworldbridge.model.Status;
+import com.wordsystem.newworldbridge.model.service.RoomStatusInfoService;
 import com.wordsystem.newworldbridge.model.service.UserInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
@@ -15,6 +17,7 @@ import org.springframework.stereotype.Controller;
 
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 @Controller
@@ -31,6 +34,11 @@ public class ChatController {
 
     @Autowired
     private RoomSessionRegistry roomSessionRegistry;
+
+
+    @Autowired
+    private RoomStatusInfoService roomStatusInfoService;
+
 
     @MessageMapping("/room/{roomId}/message")
     public void receiveRoomMessage(@DestinationVariable String roomId, @Payload Message message) {
@@ -108,6 +116,39 @@ public class ChatController {
         try {
             // Add user to the room's session registry
             roomSessionRegistry.addUserToRoom(roomId, username);
+            System.out.println("User ID: " + userId);
+
+            // Retrieve RoomStatusInfo
+            RoomStatusInfo enteredUserStatus = roomStatusInfoService.getRoomStatusInfoById(Integer.valueOf(roomId));
+
+            if (enteredUserStatus != null) {
+                System.out.println("Retrieved RoomStatusInfo with ID: " + enteredUserStatus.getId());
+
+                if (!Objects.equals(enteredUserStatus.getId(), userId)) {
+                    // User is not the host (whose userId equals roomId)
+                    enteredUserStatus.setEnteredPlayerId(userId);
+                    enteredUserStatus.setVisitorIsReady(0); // Reset visitorIsReady
+                    System.out.println("Set enteredPlayerId to " + userId + " and reset visitorIsReady to 0");
+                } else {
+                    // User is the host
+                    System.out.println("User is the host; no changes to enteredPlayerId");
+                }
+
+                // Ensure other fields are not null
+                if (enteredUserStatus.getHostIsReady() == null) {
+                    enteredUserStatus.setHostIsReady(0);
+                }
+                if (enteredUserStatus.getVisitorIsReady() == null) {
+                    enteredUserStatus.setVisitorIsReady(0);
+                }
+
+                // Update RoomStatusInfo
+                roomStatusInfoService.updateRoomStatusInfo(enteredUserStatus);
+
+                System.out.println("Updated RoomStatusInfo for room " + roomId);
+            } else {
+                System.out.println("RoomStatusInfo not found for roomId: " + roomId);
+            }
 
             // Broadcast updated user list to the room
             broadcastRoomUserList(roomId);
@@ -115,13 +156,19 @@ public class ChatController {
             System.out.println("User " + username + " joined room " + roomId);
         } catch (Exception e) {
             System.out.println("Error handling room user join: " + e.getMessage());
+            e.printStackTrace();
         }
     }
+
 
     private void handleRoomUserLeave(String roomId, String username, Integer userId) {
         try {
             // Remove user from the room's session registry
             roomSessionRegistry.removeUserFromRoom(roomId, username);
+            RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(Integer.valueOf(roomId));
+            roomStatusInfo.setEnteredPlayerId(null);
+            roomStatusInfo.setVisitorIsReady(0);
+            roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
 
             // Broadcast updated user list to the room
             broadcastRoomUserList(roomId);
