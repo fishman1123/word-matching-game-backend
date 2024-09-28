@@ -8,6 +8,8 @@ public enum Status {
     NOT_READY, // Add this
     USER_LIST,
     GAME_IS_ON,
+    GAME_IS_OFF,
+    ERROR, TURN_CHANGE
 
 }
 

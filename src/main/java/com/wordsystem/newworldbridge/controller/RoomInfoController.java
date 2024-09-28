@@ -1,9 +1,10 @@
-// RoomInfoController.java
+// src/main/java/com/wordsystem/newworldbridge/controller/RoomInfoController.java
+
 package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.dto.RoomInfo;
 import com.wordsystem.newworldbridge.dto.RoomStatusInfo;
-import com.wordsystem.newworldbridge.dto.UserInformation;
+import com.wordsystem.newworldbridge.game.service.GameService;
 import com.wordsystem.newworldbridge.model.Message;
 import com.wordsystem.newworldbridge.model.Status;
 import com.wordsystem.newworldbridge.model.service.LoginService;
@@ -13,16 +14,12 @@ import com.wordsystem.newworldbridge.model.service.UserInformationService;
 import lombok.Getter;
 import lombok.Setter;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api")
@@ -42,6 +39,9 @@ public class RoomInfoController {
 
     @Autowired
     private LoginService loginService;
+
+    @Autowired
+    private GameService gameService; // Inject GameService
 
     @PostMapping("/room")
     @Transactional
@@ -133,11 +133,11 @@ public class RoomInfoController {
         try {
             RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(hostId);
             if (roomStatusInfo == null) {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+                return ResponseEntity.status(404).body(null);
             }
             return ResponseEntity.ok(roomStatusInfo);
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            return ResponseEntity.status(500).body(null);
         }
     }
 
@@ -191,17 +191,23 @@ public class RoomInfoController {
                 return ResponseEntity.status(404).body("Room not found");
             }
 
+            boolean isReady;
+
             if (roomStatusInfo.getId().equals(userId)) {
                 if (forceReadyStatus != null) {
+                    isReady = forceReadyStatus;
                     roomStatusInfo.setHostIsReady(forceReadyStatus ? 1 : 0);
                 } else {
-                    roomStatusInfo.setHostIsReady(roomStatusInfo.getHostIsReady() == 1 ? 0 : 1);
+                    isReady = roomStatusInfo.getHostIsReady() == 1 ? false : true;
+                    roomStatusInfo.setHostIsReady(isReady ? 1 : 0);
                 }
             } else if (roomStatusInfo.getEnteredPlayerId() != null && roomStatusInfo.getEnteredPlayerId().equals(userId)) {
                 if (forceReadyStatus != null) {
+                    isReady = forceReadyStatus;
                     roomStatusInfo.setVisitorIsReady(forceReadyStatus ? 1 : 0);
                 } else {
-                    roomStatusInfo.setVisitorIsReady(roomStatusInfo.getVisitorIsReady() == 1 ? 0 : 1);
+                    isReady = roomStatusInfo.getVisitorIsReady() == 1 ? false : true;
+                    roomStatusInfo.setVisitorIsReady(isReady ? 1 : 0);
                 }
             } else {
                 return ResponseEntity.status(400).body("User not part of this room");
@@ -209,18 +215,25 @@ public class RoomInfoController {
 
             roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
 
+            // Send READY or NOT_READY message to clients
             Message statusMessage = new Message();
             statusMessage.setMessage("Ready status updated");
             statusMessage.setUserId(userId);
+            statusMessage.setSenderName(loginService.getUserNameById(userId)); // Optional: Include sender's username
+            statusMessage.setStatus(isReady ? Status.READY : Status.NOT_READY);
+            simpMessagingTemplate.convertAndSend("/room/" + hostId + "/public", statusMessage);
 
+            // Check if both users are ready
             if (roomStatusInfo.getHostIsReady() == 1 && roomStatusInfo.getVisitorIsReady() == 1) {
                 roomInfoService.setInGame(hostId, 1);
-                statusMessage.setStatus(Status.READY);
-                simpMessagingTemplate.convertAndSend("/room/" + hostId + "/public", statusMessage);
+                // Start the game by sending the initial word using GameService
+                gameService.sendInitialWordToRoom(hostId);
+
+                // Set the initial turn to the host or visitor (choose as per your game rules)
+                // For example, let's set it to the host
+                gameService.setCurrentTurn(String.valueOf(hostId), hostId);
             } else {
                 roomInfoService.setInGame(hostId, 0);
-                statusMessage.setStatus(Status.NOT_READY);
-                simpMessagingTemplate.convertAndSend("/room/" + hostId + "/public", statusMessage);
             }
 
             return ResponseEntity.ok("Ready status updated successfully");
@@ -239,7 +252,7 @@ public class RoomInfoController {
             RoomInfo roomInfo = roomInfoService.getRoom(roomId);
             if (roomInfo == null) {
                 responseMap.put("message", "Room not found");
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(responseMap);
+                return ResponseEntity.status(404).body(responseMap);
             }
 
             if (Double.compare(roomInfo.getRoomLocationLatitude(), latitude) == 0 &&
@@ -250,11 +263,11 @@ public class RoomInfoController {
             } else {
                 responseMap.put("message", "The room does not exist at this location");
                 responseMap.put("roomExists", false);
-                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responseMap);
+                return ResponseEntity.status(400).body(responseMap);
             }
         } catch (Exception e) {
             responseMap.put("message", "Error verifying room location: " + e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responseMap);
+            return ResponseEntity.status(500).body(responseMap);
         }
     }
 

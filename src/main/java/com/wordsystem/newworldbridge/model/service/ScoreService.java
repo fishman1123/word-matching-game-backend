@@ -1,15 +1,25 @@
+// src/main/java/com/wordsystem/newworldbridge/model/service/ScoreService.java
+
 package com.wordsystem.newworldbridge.model.service;
 
 import com.wordsystem.newworldbridge.dto.Score;
 
+import java.util.List;
+
 public interface ScoreService {
 
-    // 17. setScore
+    // Set Score
     void setScore(Score score);
 
-    // 18. updateScore
+    // Update Score
     void updateScore(int id, int newScore);
 
-    // 19. deleteScore
+    // Delete Score
     void deleteScore(int id);
+
+    // Get Score by ID
+    Score getScore(int id);
+
+    // Get All Scores
+    List<Score> getAllScores();
 }

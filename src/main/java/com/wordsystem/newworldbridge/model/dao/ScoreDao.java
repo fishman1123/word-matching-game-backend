@@ -1,11 +1,15 @@
+// src/main/java/com/wordsystem/newworldbridge/model/dao/ScoreDao.java
+
 package com.wordsystem.newworldbridge.model.dao;
 
 import com.wordsystem.newworldbridge.dto.Score;
 import org.apache.ibatis.annotations.*;
 
+import java.util.List;
+
 public interface ScoreDao {
 
-    // Set Score
+    // Insert Score
     @Insert("INSERT INTO score (id, user_score) VALUES (#{id}, #{userScore})")
     void setScore(Score score);
 
@@ -17,7 +21,19 @@ public interface ScoreDao {
     @Delete("DELETE FROM score WHERE id = #{id}")
     void deleteScore(int id);
 
-    // Get Score
+    // Get Score by ID with explicit mapping
     @Select("SELECT * FROM score WHERE id = #{id}")
+    @Results({
+            @Result(property = "id", column = "id"),
+            @Result(property = "userScore", column = "user_score")
+    })
     Score getScore(int id);
+
+    // Get All Scores with explicit mapping
+    @Select("SELECT * FROM score")
+    @Results({
+            @Result(property = "id", column = "id"),
+            @Result(property = "userScore", column = "user_score")
+    })
+    List<Score> getAllScores();
 }
