@@ -102,4 +102,26 @@ public class ScoreController {
             return ResponseEntity.status(500).body(null);
         }
     }
+
+    @GetMapping("/score/{userId}")
+    public ResponseEntity<Map<String, Object>> getScoreById(@PathVariable int userId) {
+        try {
+            Score score = scoreService.getScore(userId);
+            if (score == null) {
+                return ResponseEntity.status(404).body(Collections.singletonMap("message", "Score not found for userId " + userId));
+            }
+
+            String username = loginService.getUserNameById(userId);
+            Map<String, Object> scoreMap = new HashMap<>();
+            scoreMap.put("userId", score.getId());
+            scoreMap.put("username", username != null ? username : "Unknown");
+            scoreMap.put("userScore", score.getUserScore());
+
+            return ResponseEntity.ok(scoreMap);
+        } catch (Exception e) {
+            System.err.println("Error retrieving score: " + e.getMessage());
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(null);
+        }
+    }
 }
