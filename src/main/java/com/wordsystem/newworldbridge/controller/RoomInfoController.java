@@ -257,6 +257,10 @@ public class RoomInfoController {
 
             if (Double.compare(roomInfo.getRoomLocationLatitude(), latitude) == 0 &&
                     Double.compare(roomInfo.getRoomLocationLongitude(), longitude) == 0) {
+                if (roomStatusInfoService.getRoomStatusInfoById(roomId).getEnteredPlayerId() != null) {
+                    responseMap.put("message", "Room is occupied");
+                    responseMap.put("roomExists", false);
+                }
                 responseMap.put("message", "Location verified");
                 responseMap.put("roomExists", true);
                 return ResponseEntity.ok(responseMap);
