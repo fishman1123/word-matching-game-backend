@@ -54,6 +54,7 @@ public class AuthController {
     private UserInformationService userInformationService;
 
     // OAuth2 Callback 핸들러
+    // OAuth2 Callback 핸들러
     @GetMapping("/auth/callback")
     public void oauth2Callback(
             @AuthenticationPrincipal OidcUser principal,
@@ -82,14 +83,19 @@ public class AuthController {
             newUserInfo.setUserHasRoom(0);
             newUserInfo.setIsUserPlaying(0);
             userInformationService.setUserInformation(newUserInfo);
-        }
 
-        // 사용자 이름 확인
-        String targetName = loginService.getUserNameByEmail(email);
-        if (targetName == null) {
+            // 상태를 noexist로 설정하여 프론트엔드에 전송
             attributes.put("status", "noexist");
         } else {
-            attributes.put("status", "exist");
+            // 사용자가 이미 존재하는 경우 닉네임을 설정했는지 확인
+            String targetName = loginService.getUserNameByEmail(email);
+            if (targetName == null) {
+                // 닉네임이 없으면 상태를 noexist로 설정
+                attributes.put("status", "noexist");
+            } else {
+                // 닉네임이 있으면 상태를 exist로 설정
+                attributes.put("status", "exist");
+            }
         }
 
         // JavaScript로 메인 창으로 메시지 전송
@@ -99,6 +105,7 @@ public class AuthController {
         response.getWriter().write("window.close();");
         response.getWriter().write("</script>");
     }
+
 
 
 
