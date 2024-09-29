@@ -19,7 +19,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(authorizeRequests ->
                         authorizeRequests.anyRequest().authenticated())
                 .oauth2Login(oauth2 -> oauth2
-                        .defaultSuccessUrl("http://localhost:5173/login/done", true));
+                        .defaultSuccessUrl("/auth/callback", true)); // 팝업 로그인 완료 후 리다이렉트 URL
         return http.build();
     }
 }
