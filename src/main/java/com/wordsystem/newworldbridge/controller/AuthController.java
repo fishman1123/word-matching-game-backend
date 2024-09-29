@@ -18,7 +18,6 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.client.endpoint.DefaultRefreshTokenTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest;
-import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -37,14 +36,14 @@ import java.util.HashMap;
 import java.util.Map;
 
 @RestController
-public class TestController {
+public class AuthController {
 
 
     private final OAuth2AuthorizedClientManager authorizedClientManager;
     private final OAuth2AuthorizedClientService authorizedClientService;
 
 
-    public TestController(OAuth2AuthorizedClientManager authorizedClientManager,
+    public AuthController(OAuth2AuthorizedClientManager authorizedClientManager,
                           OAuth2AuthorizedClientService authorizedClientService) {
         this.authorizedClientManager = authorizedClientManager;
         this.authorizedClientService = authorizedClientService;
