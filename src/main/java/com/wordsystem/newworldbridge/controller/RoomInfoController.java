@@ -252,14 +252,17 @@ public class RoomInfoController {
             RoomInfo roomInfo = roomInfoService.getRoom(roomId);
             if (roomInfo == null) {
                 responseMap.put("message", "Room not found");
+                responseMap.put("roomExists", false);
                 return ResponseEntity.status(404).body(responseMap);
             }
 
             if (Double.compare(roomInfo.getRoomLocationLatitude(), latitude) == 0 &&
                     Double.compare(roomInfo.getRoomLocationLongitude(), longitude) == 0) {
-                if (roomStatusInfoService.getRoomStatusInfoById(roomId).getEnteredPlayerId() != null) {
+                RoomStatusInfo roomStatus = roomStatusInfoService.getRoomStatusInfoById(roomId);
+                if (roomStatus != null && roomStatus.getEnteredPlayerId() != null) {
                     responseMap.put("message", "Room is occupied");
                     responseMap.put("roomExists", false);
+                    return ResponseEntity.ok(responseMap);
                 }
                 responseMap.put("message", "Location verified");
                 responseMap.put("roomExists", true);
@@ -271,6 +274,7 @@ public class RoomInfoController {
             }
         } catch (Exception e) {
             responseMap.put("message", "Error verifying room location: " + e.getMessage());
+            responseMap.put("roomExists", false);
             return ResponseEntity.status(500).body(responseMap);
         }
     }
