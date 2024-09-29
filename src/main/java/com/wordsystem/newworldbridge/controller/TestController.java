@@ -1,3 +1,4 @@
+
 package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.dto.Login;
@@ -26,6 +27,11 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,91 +54,51 @@ public class TestController {
     @Autowired
     private UserInformationService userInformationService;
 
-    @GetMapping("/auth/user-info")
-    public ResponseEntity<Map<String, Object>> user(
-            @AuthenticationPrincipal OAuth2User principal,
-            @RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient authorizedClient) {
+    // OAuth2 Callback 핸들러
+    @GetMapping("/auth/callback")
+    public void oauth2Callback(
+            @AuthenticationPrincipal OidcUser principal,
+            @RegisteredOAuth2AuthorizedClient OAuth2AuthorizedClient authorizedClient,
+            HttpServletResponse response) throws IOException {
 
-        // Extract attributes from the OAuth2User
+        // 사용자 정보 가져오기
         Map<String, Object> attributes = new HashMap<>(principal.getAttributes());
-
-        // Extract access and refresh tokens
-        attributes.put("accessToken", authorizedClient.getAccessToken().getTokenValue());
-        attributes.put("refreshToken", authorizedClient.getRefreshToken() != null
-                ? authorizedClient.getRefreshToken().getTokenValue()
-                : null);
-
-        // Extract email and username from the principal's attributes
-        System.out.printf("user info: %s\n", attributes);
+        String accessToken = authorizedClient.getAccessToken().getTokenValue();
         String email = (String) principal.getAttribute("email");
-        String username = (String) principal.getAttribute("name");
 
-        // Check if the user already exists in the login table by email
+        // 사용자 정보 처리 로직 (DB 저장 또는 조회)
         Integer existingUserId = loginService.getIdByEmail(email);
-        Login login = new Login();
+        if (existingUserId == null) {
+            // 새 사용자 생성 로직
+            Login newLogin = new Login();
+            newLogin.setSocialEmail(email);
+            loginService.setUser(newLogin);
 
-        if (existingUserId == null) {  // If no user is found, save the new user
-            // Create a new Login object and set its properties
-            login.setSocialEmail(email);
-            loginService.setUser(login);  // Save the user to the login table
-
-            // Get the newly created user's ID (assuming MyBatis returns it after insertion)
             Integer newUserId = loginService.getIdByEmail(email);
 
-            // Create and save UserInformation for the new user
-            UserInformation userInfo = new UserInformation();
-            userInfo.setId(newUserId);  // Set the user's ID
-            userInfo.setUserWin(0);     // Initialize win, lose, room, and playing status
-            userInfo.setUserLose(0);
-            userInfo.setUserHasRoom(0);
-            userInfo.setIsUserPlaying(0);
-            userInformationService.setUserInformation(userInfo);  // Save user information to user_information table
-
-            System.out.println("New user and user information saved to the database.");
-
-            System.out.println("this is attribute: " + attributes);
-
-//            return ResponseEntity.ok(attributes);
-        } else {
-            System.out.println("User with email " + email + " already exists.");
-
-            // Check if the user information already exists in the user_information table
-            UserInformation existingUserInfo = userInformationService.getUserInformation(existingUserId);
-            if (existingUserInfo == null) {
-                // Create and save UserInformation if it doesn't exist
-                UserInformation userInfo = new UserInformation();
-                userInfo.setId(existingUserId);  // Set the user's ID
-                userInfo.setUserWin(0);          // Initialize win, lose, room, and playing status
-                userInfo.setUserLose(0);
-                userInfo.setUserHasRoom(0);
-                userInfo.setIsUserPlaying(0);
-                userInformationService.setUserInformation(userInfo);  // Save to user_information table
-
-                System.out.println("User information saved for existing user.");
-            }
-
-            // Return a response indicating the user already exists
-//            attributes.put("status", "exist");
-            System.out.println("this is attribute: " + attributes);
-//            return ResponseEntity.ok(attributes);
-
+            UserInformation newUserInfo = new UserInformation();
+            newUserInfo.setId(newUserId);
+            newUserInfo.setUserWin(0);
+            newUserInfo.setUserLose(0);
+            newUserInfo.setUserHasRoom(0);
+            newUserInfo.setIsUserPlaying(0);
+            userInformationService.setUserInformation(newUserInfo);
         }
 
+        // 사용자 이름 확인
         String targetName = loginService.getUserNameByEmail(email);
-        System.out.println("this is the usename i have: " + targetName);
-
         if (targetName == null) {
             attributes.put("status", "noexist");
-
         } else {
             attributes.put("status", "exist");
         }
-        // Return a response indicating the user does not exist before
-        System.out.println("this is attribute: " + attributes);
 
-        return ResponseEntity.ok(attributes);
-
-
+        // JavaScript로 메인 창으로 메시지 전송
+        response.setContentType("text/html");
+        response.getWriter().write("<script>");
+        response.getWriter().write("window.opener.postMessage({ token: '" + accessToken + "', status: '" + attributes.get("status") + "' }, 'http://localhost:5173');");
+        response.getWriter().write("window.close();");
+        response.getWriter().write("</script>");
     }
 
 
