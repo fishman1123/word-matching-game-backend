@@ -1,8 +1,10 @@
 package com.wordsystem.newworldbridge.controller;
 
 import com.wordsystem.newworldbridge.dto.Login;
+import com.wordsystem.newworldbridge.dto.Score;
 import com.wordsystem.newworldbridge.dto.UserInformation;
 import com.wordsystem.newworldbridge.model.service.LoginService;
+import com.wordsystem.newworldbridge.model.service.ScoreService;
 import com.wordsystem.newworldbridge.model.service.UserInformationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,9 +26,15 @@ public class UserInfoController {
     @Autowired
     private LoginService loginService;
 
+    @Autowired
+    private ScoreService scoreService;
+
     @GetMapping("/api/userinfo-here")
-    public ResponseEntity<UserInformation> getUserInfo(@AuthenticationPrincipal OAuth2User principal) {
+    public ResponseEntity<Map<String, Object>> getUserInfo(@AuthenticationPrincipal OAuth2User principal) {
+        // Extract email and profile image from the OAuth2User principal
         String email = principal.getAttribute("email");
+        String profileImage = principal.getAttribute("picture"); // Google provides the profile picture under 'picture' key
+
         Integer userId = loginService.getIdByEmail(email);
         if (userId == null) {
             return ResponseEntity.notFound().build();
@@ -37,7 +45,18 @@ public class UserInfoController {
             return ResponseEntity.notFound().build();
         }
 
-        return ResponseEntity.ok(userInfo);
+        Score userScore = scoreService.getScore(userId);
+
+
+        // Create a response map to include the user info along with the profile image
+        Map<String, Object> response = new HashMap<>();
+        response.put("userId", userInfo.getId());
+        response.put("score", userScore);
+        response.put("email", email);
+        response.put("profileImage", profileImage); // Include the Google profile image
+        response.put("otherInfo", userInfo); // You can include any other relevant user information here
+
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/api/username")
