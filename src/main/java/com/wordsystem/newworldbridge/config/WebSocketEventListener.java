@@ -108,7 +108,6 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
             System.out.println(roomIdInt);
 
             // Fetch room info and status info
-
             RoomInfo roomInfo = roomInfoService.getRoom(roomIdInt);
             RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(roomIdInt);
 
@@ -116,6 +115,22 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
                 // Room does not exist, handle error if necessary
                 System.err.println("Room not found for ID: " + roomIdInt);
                 return;
+            }
+
+            // Check if the game is on
+            if (roomInfo.getInGame() == 1) {  // Assuming '1' indicates 'GAME_IS_ON'
+                // Send GAME_IS_OFF message to the room
+                Message gameOffMessage = new Message();
+                gameOffMessage.setStatus(Status.GAME_IS_OFF);
+                gameOffMessage.setSenderName("System");
+                gameOffMessage.setUserId(999);
+                gameOffMessage.setMessage("Game has been terminated due to player disconnection.");
+
+                simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", gameOffMessage);
+
+                // Update the game state in the room info to reflect that the game is off
+                roomInfoService.setInGame(roomIdInt, 0);
+                System.out.println("Game in room " + roomIdInt + " has been set to OFF due to disconnection.");
             }
 
             if (roomInfo.getId() == userId) {
@@ -132,8 +147,6 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
             } else if (roomStatusInfo.getEnteredPlayerId() != null && roomStatusInfo.getEnteredPlayerId().equals(userId)) {
                 // User is the visitor
                 // Reset room status fields
-                roomInfoService.setInGame(roomIdInt, 0);
-
                 roomStatusInfo.setVisitorIsReady(0);
                 roomStatusInfo.setEnteredPlayerId(null);
                 roomStatusInfoService.updateRoomStatusInfo(roomStatusInfo);
@@ -143,7 +156,6 @@ public class WebSocketEventListener implements ApplicationListener<SessionDiscon
 
                 System.out.println("Visitor " + username + " disconnected from room " + roomIdInt);
             } else {
-
                 // User is not part of the room
                 System.err.println("User " + username + " is not part of room " + roomIdInt);
             }
