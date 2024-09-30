@@ -2,18 +2,6 @@ CREATE SCHEMA IF NOT EXISTS word_bridge_DB;
 
 USE word_bridge_DB;
 
-CREATE TABLE IF NOT EXISTS chat
-(
-    chat_id          int          NOT NULL
-        PRIMARY KEY,
-    user_sender_id   int          NULL,
-    user_receiver_id int          NULL,
-    chat_log_url     varchar(200) NULL,
-    CONSTRAINT chat_login_id_fk
-        FOREIGN KEY (user_sender_id) REFERENCES word_bridge_db.login (id),
-    CONSTRAINT chat_login_id_fk_2
-        FOREIGN KEY (user_receiver_id) REFERENCES word_bridge_db.login (id)
-);
 
 CREATE TABLE IF NOT EXISTS login
 (
