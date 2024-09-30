@@ -20,16 +20,7 @@ public class ScoreController {
     @Autowired
     private LoginService loginService;
 
-    /**
-     * Endpoint to add or update the winner's score.
-     * If the user exists in the score table, increment their score by 1.
-     * If not, create a new record with score = 1.
-     *
-     * Request Body:
-     * {
-     *     "userId": <integer>
-     * }
-     */
+
     @PostMapping("/score/update")
     public ResponseEntity<String> updateWinnerScore(@RequestBody Map<String, Object> requestBody) {
         try {
@@ -105,14 +96,18 @@ public class ScoreController {
 
     @GetMapping("/score/{userId}")
     public ResponseEntity<Map<String, Object>> getScoreById(@PathVariable int userId) {
+        Map<String, Object> scoreMap = new HashMap<>();
         try {
+            String username = loginService.getUserNameById(userId);
             Score score = scoreService.getScore(userId);
             if (score == null) {
-                return ResponseEntity.status(404).body(Collections.singletonMap("message", "Score not found for userId " + userId));
+                scoreMap.put("userId", userId);
+                scoreMap.put("username", username != null ? username : "Unknown");
+                scoreMap.put("userScore", 0);
+                return ResponseEntity.ok(scoreMap);
             }
 
-            String username = loginService.getUserNameById(userId);
-            Map<String, Object> scoreMap = new HashMap<>();
+
             scoreMap.put("userId", score.getId());
             scoreMap.put("username", username != null ? username : "Unknown");
             scoreMap.put("userScore", score.getUserScore());

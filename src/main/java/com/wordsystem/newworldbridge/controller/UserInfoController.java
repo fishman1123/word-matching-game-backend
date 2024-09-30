@@ -47,11 +47,21 @@ public class UserInfoController {
 
         Score userScore = scoreService.getScore(userId);
 
+        Score tempScore;
+
+        if (userScore == null) {
+            tempScore = new Score();
+            tempScore.setId(userId);
+            tempScore.setUserScore(0);
+        } else {
+            tempScore = userScore;
+        }
+
 
         // Create a response map to include the user info along with the profile image
         Map<String, Object> response = new HashMap<>();
         response.put("userId", userInfo.getId());
-        response.put("score", userScore);
+        response.put("score", tempScore);
         response.put("email", email);
         response.put("profileImage", profileImage); // Include the Google profile image
         response.put("otherInfo", userInfo); // You can include any other relevant user information here
