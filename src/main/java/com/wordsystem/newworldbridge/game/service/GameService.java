@@ -137,42 +137,21 @@ public class GameService {
         simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", turnChangeMessage);
     }
 
-    /**
-     * Retrieves the previous word used in the room.
-     *
-     * @param roomId The ID of the room.
-     * @return The previous word, or null if not set.
-     */
     public String getPreviousWord(String roomId) {
         return previousWordsMap.getOrDefault(roomId, null);
     }
 
-    /**
-     * Sets the previous word for the room.
-     *
-     * @param roomId The ID of the room.
-     * @param word   The word to set as previous.
-     */
+
     public void setPreviousWord(String roomId, String word) {
         previousWordsMap.put(roomId, word);
     }
 
-    /**
-     * Removes the previous word for the room.
-     *
-     * @param roomId The ID of the room.
-     */
+
     public void removePreviousWord(String roomId) {
         previousWordsMap.remove(roomId);
     }
 
-    /**
-     * Checks if the given word has already been used in the room.
-     *
-     * @param roomId The ID of the room.
-     * @param word   The word to check.
-     * @return True if the word is duplicated, false otherwise.
-     */
+
     public boolean isWordDuplicated(String roomId, String word) {
         if (roomId == null || word == null) {
             return false;
@@ -183,12 +162,7 @@ public class GameService {
         return !usedWordsMap.get(roomId).add(word.toLowerCase()); // Case-insensitive
     }
 
-    /**
-     * Adds a word to the used words list for the room.
-     *
-     * @param roomId The ID of the room.
-     * @param word   The word to add.
-     */
+
     public void addUsedWord(String roomId, String word) {
         if (roomId == null || word == null) {
             return;
