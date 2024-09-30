@@ -90,8 +90,21 @@ public class ChatController {
                     // Incorrect word
                     sendGameStatus(roomId, message.getUserId());
                 } else {
-                    // Correct word, update the previous word in GameService
+                    // Check for duplicated word
+                    if (gameService.isWordDuplicated(roomId, currentWord)) {
+                        // Duplicated word detected
+                        sendDuplicatedMessage(roomId);
+                        // End the game due to duplication
+                        sendGameStatus(roomId, message.getUserId());
+                        // Clear the used words list
+                        gameService.clearUsedWords(roomId);
+                        return;
+                    }
+
+                    // Correct and non-duplicated word, update the previous word in GameService
                     gameService.setPreviousWord(roomId, currentWord);
+                    // Add the current word to used words
+                    gameService.addUsedWord(roomId, currentWord);
 
                     // Broadcast the message to the room
                     simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
@@ -114,6 +127,20 @@ public class ChatController {
             // Broadcast the message to the room
             simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
         }
+    }
+
+    /**
+     * Sends a DUPLICATED system message to the room.
+     *
+     * @param roomId The ID of the room.
+     */
+    private void sendDuplicatedMessage(String roomId) {
+        Message duplicatedMessage = new Message();
+        duplicatedMessage.setStatus(Status.DUPLICATED);
+        duplicatedMessage.setMessage("duplicated");
+        duplicatedMessage.setSenderName("System");
+        duplicatedMessage.setUserId(null); // System message doesn't belong to a specific user
+        simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", duplicatedMessage);
     }
 
     private void sendGameStatus(String roomId, Integer incorrectUserId) {
@@ -157,6 +184,7 @@ public class ChatController {
         // Reset the game state
         gameService.removePreviousWord(roomId); // Remove previous word from GameService
         gameService.removeCurrentTurn(roomId); // Remove turn from GameService
+        gameService.clearUsedWords(roomId); // Clear used words
     }
 
     private void handleRoomUserJoin(String roomId, String username, Integer userId) {
@@ -220,6 +248,7 @@ public class ChatController {
             // Reset the game state when a user leaves
             gameService.removePreviousWord(roomId); // Remove previous word from GameService
             gameService.removeCurrentTurn(roomId); // Remove turn from GameService
+            gameService.clearUsedWords(roomId); // Clear used words
 
             // Broadcast updated user list to the room
             broadcastRoomUserList(roomId);

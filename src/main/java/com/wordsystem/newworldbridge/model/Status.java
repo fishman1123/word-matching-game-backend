@@ -9,7 +9,8 @@ public enum Status {
     USER_LIST,
     GAME_IS_ON,
     GAME_IS_OFF,
-    ERROR, TURN_CHANGE
+    ERROR, TURN_CHANGE,
+    DUPLICATED
 
 }
 

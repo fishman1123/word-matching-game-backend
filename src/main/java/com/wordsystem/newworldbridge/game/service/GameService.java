@@ -10,17 +10,20 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class GameService {
 
     // Memory-based map to manage the turn
-    private Map<String, Integer> currentTurnMap = new HashMap<>();
+    private ConcurrentHashMap<String, Integer> currentTurnMap = new ConcurrentHashMap<>();
 
     // Memory-based map to manage the previous word for each room
-    private Map<String, String> previousWordsMap = new HashMap<>();
+    private ConcurrentHashMap<String, String> previousWordsMap = new ConcurrentHashMap<>();
+
+    // Memory-based map to store used words for each room
+    private ConcurrentHashMap<String, Set<String>> usedWordsMap = new ConcurrentHashMap<>();
 
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
@@ -28,7 +31,11 @@ public class GameService {
     @Autowired
     private RoomStatusInfoService roomStatusInfoService;
 
-    // Method to send the initial word to the room
+    /**
+     * Method to send the initial word to the room.
+     *
+     * @param hostId The ID of the room host.
+     */
     public void sendInitialWordToRoom(int hostId) {
         String roomId = String.valueOf(hostId);
         RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(hostId);
@@ -44,20 +51,36 @@ public class GameService {
         initialWordMessage.setStatus(Status.GAME_IS_ON);
         initialWordMessage.setMessage("word : 박물관");
         initialWordMessage.setSenderName("System");
+        initialWordMessage.setUserId(visitorId); // Set the starting player's userId
 
         // Broadcast to the room
         simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", initialWordMessage);
 
-        // Initialize the previous word
+        // Initialize the previous word and used words
         previousWordsMap.put(roomId, "박물관");
+        usedWordsMap.put(roomId, ConcurrentHashMap.newKeySet());
+        usedWordsMap.get(roomId).add("박물관".toLowerCase()); // Store in lowercase for case-insensitive comparison
+
+        // Set the initial turn to the starting player
+        currentTurnMap.put(roomId, visitorId);
     }
 
-    // Method to get the current turn
+    /**
+     * Retrieves the current turn's user ID for a given room.
+     *
+     * @param roomId The ID of the room.
+     * @return The user ID whose turn it is, or null if not set.
+     */
     public Integer getCurrentTurn(String roomId) {
         return currentTurnMap.get(roomId);
     }
 
-    // Method to set the current turn
+    /**
+     * Sets the current turn's user ID for a given room.
+     *
+     * @param roomId The ID of the room.
+     * @param userId The user ID to set as the current turn.
+     */
     public void setCurrentTurn(String roomId, Integer userId) {
         currentTurnMap.put(roomId, userId);
 
@@ -65,12 +88,22 @@ public class GameService {
         sendTurnChangeMessage(roomId);
     }
 
-    // Method to remove the current turn (e.g., when the game ends)
+    /**
+     * Removes the current turn's user ID for a given room.
+     *
+     * @param roomId The ID of the room.
+     */
     public void removeCurrentTurn(String roomId) {
         currentTurnMap.remove(roomId);
     }
 
-    // Logic to change turns
+    /**
+     * Changes the turn to the next user in the room.
+     *
+     * @param roomId    The ID of the room.
+     * @param hostId    The user ID of the host.
+     * @param visitorId The user ID of the visitor.
+     */
     public void changeTurn(String roomId, Integer hostId, Integer visitorId) {
         Integer currentTurnUserId = getCurrentTurn(roomId);
 
@@ -86,7 +119,11 @@ public class GameService {
         setCurrentTurn(roomId, nextTurnUserId);
     }
 
-    // Method to broadcast the turn change message
+    /**
+     * Broadcasts a turn change message to the room.
+     *
+     * @param roomId The ID of the room.
+     */
     public void sendTurnChangeMessage(String roomId) {
         Integer currentTurnUserId = getCurrentTurn(roomId);
         if (currentTurnUserId == null) {
@@ -95,23 +132,80 @@ public class GameService {
         Message turnChangeMessage = new Message();
         turnChangeMessage.setStatus(Status.TURN_CHANGE);
         turnChangeMessage.setUserId(currentTurnUserId);
-        turnChangeMessage.setMessage("It's now user " + currentTurnUserId + "'s turn.");
+        turnChangeMessage.setMessage("It's now your turn.");
         turnChangeMessage.setSenderName("System");
         simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", turnChangeMessage);
     }
 
-    // Method to get the previous word for a room
+    /**
+     * Retrieves the previous word used in the room.
+     *
+     * @param roomId The ID of the room.
+     * @return The previous word, or null if not set.
+     */
     public String getPreviousWord(String roomId) {
         return previousWordsMap.getOrDefault(roomId, null);
     }
 
-    // Method to update the previous word for a room
+    /**
+     * Sets the previous word for the room.
+     *
+     * @param roomId The ID of the room.
+     * @param word   The word to set as previous.
+     */
     public void setPreviousWord(String roomId, String word) {
         previousWordsMap.put(roomId, word);
     }
 
-    // Method to remove the previous word (e.g., when the game ends)
+    /**
+     * Removes the previous word for the room.
+     *
+     * @param roomId The ID of the room.
+     */
     public void removePreviousWord(String roomId) {
         previousWordsMap.remove(roomId);
+    }
+
+    /**
+     * Checks if the given word has already been used in the room.
+     *
+     * @param roomId The ID of the room.
+     * @param word   The word to check.
+     * @return True if the word is duplicated, false otherwise.
+     */
+    public boolean isWordDuplicated(String roomId, String word) {
+        if (roomId == null || word == null) {
+            return false;
+        }
+        // Initialize the set if it doesn't exist
+        usedWordsMap.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet());
+        // Attempt to add the word. If it already exists, add() returns false
+        return !usedWordsMap.get(roomId).add(word.toLowerCase()); // Case-insensitive
+    }
+
+    /**
+     * Adds a word to the used words list for the room.
+     *
+     * @param roomId The ID of the room.
+     * @param word   The word to add.
+     */
+    public void addUsedWord(String roomId, String word) {
+        if (roomId == null || word == null) {
+            return;
+        }
+        usedWordsMap.computeIfAbsent(roomId, k -> ConcurrentHashMap.newKeySet());
+        usedWordsMap.get(roomId).add(word.toLowerCase()); // Case-insensitive
+    }
+
+    /**
+     * Clears the used words list for the room.
+     *
+     * @param roomId The ID of the room.
+     */
+    public void clearUsedWords(String roomId) {
+        Set<String> usedWords = usedWordsMap.get(roomId);
+        if (usedWords != null) {
+            usedWords.clear();
+        }
     }
 }
