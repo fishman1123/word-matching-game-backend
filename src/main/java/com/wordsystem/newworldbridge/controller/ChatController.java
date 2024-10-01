@@ -69,36 +69,36 @@ public class ChatController {
                 return;
             }
 
-            // Implement the game logic here
+            // 게임로직
 
-            // Get the previous word for this room from GameService
+            // 이전단어 불러오기
             String previousWord = gameService.getPreviousWord(roomId);
 
-            // Check if the previous word is null, which means this is the first word
+            // 널값일경우 첫번째 단어임
             if (previousWord == null) {
                 System.out.println("Previous word is null, using initial word.");
-                // Retrieve the initial word that was randomly chosen for this room
+                // 해당 서비스를 통해 이전단어 추출
                 previousWord = gameService.getInitialWord(roomId);
             }
 
             String currentWord = message.getMessage();
 
-            // Check if the first letter of currentWord matches the last letter of previousWord
+            // 단어체크
             if (currentWord != null && currentWord.length() > 0 && previousWord.length() > 0) {
                 char lastCharOfPreviousWord = previousWord.charAt(previousWord.length() - 1);
                 char firstCharOfCurrentWord = currentWord.charAt(0);
 
                 if (lastCharOfPreviousWord != firstCharOfCurrentWord) {
-                    // Incorrect word
+                    // 단어 틀릴겨우
                     sendGameStatus(roomId, message.getUserId());
                 } else {
-                    // Check for duplicated word
+                    // 중복단어확인
                     if (gameService.isWordDuplicated(roomId, currentWord)) {
-                        // Duplicated word detected
+                        // 증복단어트리거
                         sendDuplicatedMessage(roomId);
-                        // End the game due to duplication
+                        // 중복단어로 인한 게임종료트리거
                         sendGameStatus(roomId, message.getUserId());
-                        // Clear the used words list
+                        // 어레이 정리
                         gameService.clearUsedWords(roomId);
                         return;
                     }
