@@ -123,8 +123,31 @@ public class ChatController {
                 sendGameStatus(roomId, message.getUserId());
             }
         } else if (message.getStatus() == Status.GAME_IS_OFF) {
-            // Handle game over status if needed
-            simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
+            if (Objects.equals(message.getMessage(), "TIMEOUT")) {
+                if (Integer.valueOf(roomId) !== message.getUserId()) {
+                    Message loserMessage = new Message();
+                    loserMessage.setStatus(Status.GAME_IS_OFF);
+                    loserMessage.setSenderName("System");
+                    loserMessage.setUserId(message.getUserId());
+                    loserMessage.setMessage("You lose");
+
+                    Message winnerMessage = new Message();
+                    winnerMessage.setStatus(Status.GAME_IS_OFF);
+                    winnerMessage.setSenderName("System");
+                    winnerMessage.setUserId(Integer.valueOf(roomId));
+                    winnerMessage.setMessage("You won");
+                    simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
+
+                } else {
+
+                }
+                simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", loserMessage);
+                simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", winnerMessage);
+            } else {
+                // Handle game over status if needed
+                simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
+            }
+
         } else {
             // Broadcast the message to the room
             simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
