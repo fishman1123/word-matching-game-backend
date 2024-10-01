@@ -123,28 +123,37 @@ public class ChatController {
                 sendGameStatus(roomId, message.getUserId());
             }
         } else if (message.getStatus() == Status.GAME_IS_OFF) {
-            if (Objects.equals(message.getMessage(), "TIMEOUT")) {
-                if (Integer.valueOf(roomId) !== message.getUserId()) {
-                    Message loserMessage = new Message();
-                    loserMessage.setStatus(Status.GAME_IS_OFF);
-                    loserMessage.setSenderName("System");
-                    loserMessage.setUserId(message.getUserId());
-                    loserMessage.setMessage("You lose");
+            if ("TIMEOUT".equals(message.getMessage())) {
+                // Assuming that the message.getUserId() is the player who has timed out
+                Integer loserId = message.getUserId();
 
-                    Message winnerMessage = new Message();
-                    winnerMessage.setStatus(Status.GAME_IS_OFF);
-                    winnerMessage.setSenderName("System");
-                    winnerMessage.setUserId(Integer.valueOf(roomId));
-                    winnerMessage.setMessage("You won");
-                    simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
+                // You need to fetch the other player in the room
+                RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(Integer.parseInt(roomId));
+                Integer hostId = roomStatusInfo.getId();
+                Integer visitorId = roomStatusInfo.getEnteredPlayerId();
 
-                } else {
+                // Determine the winner: if loser is host, winner is visitor, and vice versa
+                Integer winnerId = loserId.equals(hostId) ? visitorId : hostId;
 
-                }
+                // Create and send the loser message
+                Message loserMessage = new Message();
+                loserMessage.setStatus(Status.GAME_IS_OFF);
+                loserMessage.setSenderName("System");
+                loserMessage.setUserId(loserId);
+                loserMessage.setMessage("You lose");
+
+                // Create and send the winner message
+                Message winnerMessage = new Message();
+                winnerMessage.setStatus(Status.GAME_IS_OFF);
+                winnerMessage.setSenderName("System");
+                winnerMessage.setUserId(winnerId);
+                winnerMessage.setMessage("You won");
+
+                // Broadcast the winner and loser messages
                 simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", loserMessage);
                 simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", winnerMessage);
             } else {
-                // Handle game over status if needed
+                // Handle other GAME_IS_OFF messages
                 simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", message);
             }
 
