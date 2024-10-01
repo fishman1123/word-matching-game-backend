@@ -67,10 +67,7 @@ public class ScoreController {
         }
     }
 
-    /**
-     * Endpoint to retrieve all scores.
-     * Returns a list of users with their usernames and scores.
-     */
+
     @GetMapping("/scores")
     public ResponseEntity<List<Map<String, Object>>> getAllScores() {
         try {

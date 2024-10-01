@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -25,17 +25,15 @@ public class GameService {
     // Memory-based map to store used words for each room
     private ConcurrentHashMap<String, Set<String>> usedWordsMap = new ConcurrentHashMap<>();
 
+    private Map<String, String> initialWordMap = new ConcurrentHashMap<>();
+
     @Autowired
     private SimpMessagingTemplate simpMessagingTemplate;
 
     @Autowired
     private RoomStatusInfoService roomStatusInfoService;
 
-    /**
-     * Method to send the initial word to the room.
-     *
-     * @param hostId The ID of the room host.
-     */
+
     public void sendInitialWordToRoom(int hostId) {
         String roomId = String.valueOf(hostId);
         RoomStatusInfo roomStatusInfo = roomStatusInfoService.getRoomStatusInfoById(hostId);
@@ -46,10 +44,17 @@ public class GameService {
             return;
         }
 
-        // Send the initial word "박물관" to both users
+        // Define a list of possible initial words
+        List<String> initialWords = Arrays.asList("박물관", "자동차", "강아지", "컴퓨터", "음악", "책상", "학교", "바다", "산", "도서관");
+
+        // Pick a random word from the list
+        Random random = new Random();
+        String randomWord = initialWords.get(random.nextInt(initialWords.size()));
+
+        // Send the initial word to both users
         Message initialWordMessage = new Message();
         initialWordMessage.setStatus(Status.GAME_IS_ON);
-        initialWordMessage.setMessage("word : 박물관");
+        initialWordMessage.setMessage("word : " + randomWord);
         initialWordMessage.setSenderName("System");
         initialWordMessage.setUserId(visitorId); // Set the starting player's userId
 
@@ -57,30 +62,20 @@ public class GameService {
         simpMessagingTemplate.convertAndSend("/room/" + roomId + "/public", initialWordMessage);
 
         // Initialize the previous word and used words
-        previousWordsMap.put(roomId, "박물관");
+        previousWordsMap.put(roomId, randomWord);
         usedWordsMap.put(roomId, ConcurrentHashMap.newKeySet());
-        usedWordsMap.get(roomId).add("박물관".toLowerCase()); // Store in lowercase for case-insensitive comparison
+        usedWordsMap.get(roomId).add(randomWord.toLowerCase()); // Store in lowercase for case-insensitive comparison
 
         // Set the initial turn to the starting player
         currentTurnMap.put(roomId, visitorId);
     }
 
-    /**
-     * Retrieves the current turn's user ID for a given room.
-     *
-     * @param roomId The ID of the room.
-     * @return The user ID whose turn it is, or null if not set.
-     */
+
     public Integer getCurrentTurn(String roomId) {
         return currentTurnMap.get(roomId);
     }
 
-    /**
-     * Sets the current turn's user ID for a given room.
-     *
-     * @param roomId The ID of the room.
-     * @param userId The user ID to set as the current turn.
-     */
+
     public void setCurrentTurn(String roomId, Integer userId) {
         currentTurnMap.put(roomId, userId);
 
@@ -88,22 +83,21 @@ public class GameService {
         sendTurnChangeMessage(roomId);
     }
 
-    /**
-     * Removes the current turn's user ID for a given room.
-     *
-     * @param roomId The ID of the room.
-     */
+    public String getInitialWord(String roomId) {
+        return initialWordMap.get(roomId);
+    }
+
+    public void setInitialWord(String roomId, String word) {
+        initialWordMap.put(roomId, word);
+    }
+
+
+
     public void removeCurrentTurn(String roomId) {
         currentTurnMap.remove(roomId);
     }
 
-    /**
-     * Changes the turn to the next user in the room.
-     *
-     * @param roomId    The ID of the room.
-     * @param hostId    The user ID of the host.
-     * @param visitorId The user ID of the visitor.
-     */
+
     public void changeTurn(String roomId, Integer hostId, Integer visitorId) {
         Integer currentTurnUserId = getCurrentTurn(roomId);
 
@@ -119,11 +113,7 @@ public class GameService {
         setCurrentTurn(roomId, nextTurnUserId);
     }
 
-    /**
-     * Broadcasts a turn change message to the room.
-     *
-     * @param roomId The ID of the room.
-     */
+
     public void sendTurnChangeMessage(String roomId) {
         Integer currentTurnUserId = getCurrentTurn(roomId);
         if (currentTurnUserId == null) {
@@ -171,11 +161,7 @@ public class GameService {
         usedWordsMap.get(roomId).add(word.toLowerCase()); // Case-insensitive
     }
 
-    /**
-     * Clears the used words list for the room.
-     *
-     * @param roomId The ID of the room.
-     */
+
     public void clearUsedWords(String roomId) {
         Set<String> usedWords = usedWordsMap.get(roomId);
         if (usedWords != null) {

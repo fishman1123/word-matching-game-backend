@@ -19,9 +19,7 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 @Slf4j
 @Controller
@@ -75,8 +73,12 @@ public class ChatController {
 
             // Get the previous word for this room from GameService
             String previousWord = gameService.getPreviousWord(roomId);
+
+            // Check if the previous word is null, which means this is the first word
             if (previousWord == null) {
-                previousWord = "박물관";
+                System.out.println("Previous word is null, using initial word.");
+                // Retrieve the initial word that was randomly chosen for this room
+                previousWord = gameService.getInitialWord(roomId);
             }
 
             String currentWord = message.getMessage();
@@ -129,11 +131,9 @@ public class ChatController {
         }
     }
 
-    /**
-     * Sends a DUPLICATED system message to the room.
-     *
-     * @param roomId The ID of the room.
-     */
+
+
+
     private void sendDuplicatedMessage(String roomId) {
         Message duplicatedMessage = new Message();
         duplicatedMessage.setStatus(Status.DUPLICATED);
@@ -188,6 +188,11 @@ public class ChatController {
     }
 
     private void handleRoomUserJoin(String roomId, String username, Integer userId) {
+        List<String> initialWords = Arrays.asList("박물관", "자동차", "강아지", "컴퓨터", "음악", "책상", "학교", "바다", "산", "도서관");
+        Random random = new Random();
+        String randomWord = initialWords.get(random.nextInt(initialWords.size()));
+
+        gameService.setInitialWord(roomId, randomWord);
         try {
             // Add user to the room's session registry
             roomSessionRegistry.addUserToRoom(roomId, username);
